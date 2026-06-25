@@ -55,6 +55,66 @@ const REGION_COLORS = {
 const fmt = v => '฿' + (v / 1000).toFixed(0) + 'K';
 const fmtFull = v => '฿' + v.toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
+// --- Customer Name Masking ---
+const maskCustomerName = (name) => {
+  if (!name) return '—';
+  // Handle corporate prefix/suffix
+  const prefixes = ['บริษัท ', 'บจก. ', 'ห้างหุ้นส่วน ', 'ร้าน ', 'คุณ ', 'นาย ', 'นาง ', 'นางสาว '];
+  const suffixes = [' จำกัด', ' (มหาชน)', ' จำกัด (มหาชน)'];
+  let prefix = '';
+  let suffix = '';
+  let core = name;
+  for (const p of prefixes) {
+    if (core.startsWith(p)) { prefix = p; core = core.slice(p.length); break; }
+  }
+  for (const s of suffixes) {
+    if (core.endsWith(s)) { suffix = s; core = core.slice(0, -s.length); break; }
+  }
+  if (core.length <= 2) return name;
+  // Keep first char, mask the rest
+  const masked = core[0] + '*'.repeat(Math.min(core.length - 1, 5));
+  return prefix + masked + suffix;
+};
+
+// --- Error Type Labels ---
+const ERROR_TYPE_LABELS = {
+  0: { label: 'ค่าติดลบ', icon: '📉', color: '#ef4444', desc: 'Quantity และ NetAmount เป็นค่าติดลบ' },
+  1: { label: 'ยอดเงินว่าง', icon: '💸', color: '#f59e0b', desc: 'NetAmount เป็น NULL' },
+  2: { label: 'ข้อมูลภูมิภาคว่าง', icon: '🗺️', color: '#8b5cf6', desc: 'Region และ Province เป็น NULL' },
+  3: { label: 'ข้อมูลว่างเปล่า', icon: '📭', color: '#06b6d4', desc: 'Region และ Province เป็น string ว่าง' },
+  4: { label: 'ข้อมูล Dimension หาย', icon: '🔗', color: '#ec4899', desc: 'CustomerID และ ProductID เป็น NULL' }
+};
+
+// Generate mock detailed error rows for a given log entry
+const generateMockErrorDetails = (log) => {
+  if (!log || !log.errorDetails) return [];
+  // Parse all OrderIDs from errorDetails string
+  const raw = log.errorDetails.replace(/\(และอีก.*\)/, '').trim();
+  const ids = raw.split(',').map(s => s.trim()).filter(Boolean);
+  const baseDate = new Date(log.SyncDate);
+  return ids.map((orderId, idx) => {
+    const typeNum = idx % 5;
+    const meta = ERROR_TYPE_LABELS[typeNum];
+    const fakeDate = new Date(baseDate);
+    fakeDate.setHours(fakeDate.getHours() - (idx * 2 + 1));
+    const fakePrices = [500, 750, 1200, 300, 950, 1800, 450, 620];
+    const fakeQty = typeNum === 0 ? -5 : (idx % 4) + 1;
+    const fakeAmt = typeNum === 0 ? -150 : (typeNum === 1 ? null : fakePrices[idx % fakePrices.length]);
+    return {
+      orderID: orderId,
+      errorType: typeNum,
+      errorLabel: meta.label,
+      errorIcon: meta.icon,
+      errorColor: meta.color,
+      errorDesc: meta.desc,
+      orderDate: fakeDate.toISOString(),
+      quantity: fakeQty,
+      netAmount: fakeAmt,
+      product: ['มะลิ', 'มะนาว-สะระแหน่', 'ขิง-มะนาว', 'ส้มโอ', 'ดอกเก็กฮวย'][idx % 5],
+    };
+  });
+};
+
 // Global Chart Options Defaults
 ChartJS.defaults.font.family = "'Prompt', 'Inter', sans-serif";
 
@@ -248,11 +308,11 @@ const mockRegionalDetail = {
 };
 
 const mockSyncLogs = [
-  { SyncID: 1, SyncDate: '2026-06-25T11:57:52.167Z', NewRecords: 12, ModifiedRecords: 5, TotalRecords: 1500, errorDetails: '300002, 100003, 300009, 100010, 100027 (และอีก 57 รายการ)' },
-  { SyncID: 2, SyncDate: '2026-06-24T05:00:10.000Z', NewRecords: 8, ModifiedRecords: 3, TotalRecords: 1488, errorDetails: '100001, 100015, 100022 (และอีก 2 รายการ)' },
-  { SyncID: 3, SyncDate: '2026-06-23T05:00:15.000Z', NewRecords: 15, ModifiedRecords: 2, TotalRecords: 1480, errorDetails: null },
-  { SyncID: 4, SyncDate: '2026-06-22T05:00:08.000Z', NewRecords: 0, ModifiedRecords: 0, TotalRecords: 1465, errorDetails: null },
-  { SyncID: 5, SyncDate: '2026-06-21T05:00:12.000Z', NewRecords: 22, ModifiedRecords: 8, TotalRecords: 1465, errorDetails: '100012, 100013, 100030 (และอีก 4 รายการ)' }
+  { SyncID: 1, SyncDate: '2026-06-25T11:57:52.167Z', NewRecords: 12, ModifiedRecords: 5, TotalRecords: 1500, errorDetails: '300002, 100003, 300009, 100010, 100027 (และอีก 57 รายการ)', errorCount: 62 },
+  { SyncID: 2, SyncDate: '2026-06-24T05:00:10.000Z', NewRecords: 8, ModifiedRecords: 3, TotalRecords: 1488, errorDetails: '100001, 100015, 100022 (และอีก 2 รายการ)', errorCount: 5 },
+  { SyncID: 3, SyncDate: '2026-06-23T05:00:15.000Z', NewRecords: 15, ModifiedRecords: 2, TotalRecords: 1480, errorDetails: null, errorCount: 0 },
+  { SyncID: 4, SyncDate: '2026-06-22T05:00:08.000Z', NewRecords: 0, ModifiedRecords: 0, TotalRecords: 1465, errorDetails: null, errorCount: 0 },
+  { SyncID: 5, SyncDate: '2026-06-21T05:00:12.000Z', NewRecords: 22, ModifiedRecords: 8, TotalRecords: 1465, errorDetails: '100012, 100013, 100030 (และอีก 4 รายการ)', errorCount: 7 }
 ];
 
 const mockSyncDiff = {
@@ -640,6 +700,147 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
 
 const VALID_TABS = ['regional', 'exec', 'customer', 'product', 'dev', 'sync'];
 
+// ===================== ERROR DETAIL MODAL COMPONENT =====================
+function ErrorDetailModal({ log, onClose }) {
+  if (!log) return null;
+  const details = generateMockErrorDetails(log);
+  const totalCount = log.errorCount || details.length;
+  const typeSummary = details.reduce((acc, d) => {
+    acc[d.errorType] = (acc[d.errorType] || 0) + 1;
+    return acc;
+  }, {});
+
+  const formatDateTH = (isoStr) => {
+    try {
+      return new Date(isoStr).toLocaleString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' น.';
+    } catch { return isoStr; }
+  };
+
+  return (
+    <div
+      id="error-detail-modal-overlay"
+      onClick={(e) => e.target.id === 'error-detail-modal-overlay' && onClose()}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9999,
+        background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(6px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '16px'
+      }}
+    >
+      <div style={{
+        background: '#0f172a',
+        border: '1px solid rgba(239,68,68,0.25)',
+        borderRadius: '16px',
+        width: '100%', maxWidth: '820px',
+        maxHeight: '88vh', display: 'flex', flexDirection: 'column',
+        boxShadow: '0 32px 80px -20px rgba(0,0,0,0.8), 0 0 40px rgba(239,68,68,0.1)'
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: '20px 24px 16px',
+          borderBottom: '1px solid rgba(255,255,255,0.07)',
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px'
+        }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+              <span style={{ fontSize: '20px' }}>🚨</span>
+              <h4 style={{ margin: 0, color: '#f1f5f9', fontWeight: 700, fontSize: '17px' }}>รายละเอียดข้อผิดพลาด</h4>
+              <span style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '6px', padding: '2px 8px', fontSize: '12px', fontWeight: 700 }}>
+                {totalCount} รายการ
+              </span>
+            </div>
+            <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+              รอบซิงค์: {formatDateTH(log.SyncDate)} · แสดงตัวอย่าง {details.length} รายการแรก
+            </p>
+          </div>
+          <button onClick={onClose} style={{
+            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: '8px', color: '#94a3b8', cursor: 'pointer', padding: '6px 12px',
+            fontSize: '14px', flexShrink: 0
+          }}>✕ ปิด</button>
+        </div>
+
+        {/* Type Summary Pills */}
+        <div style={{ padding: '12px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          {Object.entries(typeSummary).map(([typeNum, cnt]) => {
+            const meta = ERROR_TYPE_LABELS[Number(typeNum)];
+            return (
+              <span key={typeNum} style={{
+                background: meta.color + '18', border: `1px solid ${meta.color}40`,
+                color: meta.color, borderRadius: '20px', padding: '3px 10px',
+                fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px'
+              }}>
+                {meta.icon} {meta.label} ({cnt})
+              </span>
+            );
+          })}
+        </div>
+
+        {/* Table */}
+        <div style={{ overflowY: 'auto', flex: 1, padding: '0 24px 24px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', marginTop: '16px' }}>
+            <thead>
+              <tr style={{ color: '#64748b', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                <th style={{ padding: '8px 10px 10px', textAlign: 'left', fontWeight: 600 }}>OrderID</th>
+                <th style={{ padding: '8px 10px 10px', textAlign: 'left', fontWeight: 600 }}>ประเภทข้อผิดพลาด</th>
+                <th style={{ padding: '8px 10px 10px', textAlign: 'left', fontWeight: 600 }}>วันที่บันทึก</th>
+                <th style={{ padding: '8px 10px 10px', textAlign: 'left', fontWeight: 600 }}>สินค้า</th>
+                <th style={{ padding: '8px 10px 10px', textAlign: 'right', fontWeight: 600 }}>Quantity</th>
+                <th style={{ padding: '8px 10px 10px', textAlign: 'right', fontWeight: 600 }}>NetAmount</th>
+                <th style={{ padding: '8px 10px 10px', textAlign: 'left', fontWeight: 600 }}>สาเหตุ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {details.map((d, idx) => (
+                <tr key={d.orderID} style={{
+                  borderBottom: '1px solid rgba(255,255,255,0.04)',
+                  background: idx % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent',
+                  transition: 'background 0.15s'
+                }}>
+                  <td style={{ padding: '9px 10px', color: '#e2e8f0', fontWeight: 600, fontFamily: 'monospace' }}>
+                    {d.orderID}
+                  </td>
+                  <td style={{ padding: '9px 10px' }}>
+                    <span style={{
+                      background: d.errorColor + '18', border: `1px solid ${d.errorColor}40`,
+                      color: d.errorColor, borderRadius: '5px', padding: '2px 7px',
+                      fontSize: '11.5px', fontWeight: 600, whiteSpace: 'nowrap'
+                    }}>
+                      {d.errorIcon} {d.errorLabel}
+                    </span>
+                  </td>
+                  <td style={{ padding: '9px 10px', color: '#94a3b8', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                    {formatDateTH(d.orderDate)}
+                  </td>
+                  <td style={{ padding: '9px 10px', color: '#cbd5e1', fontSize: '12px' }}>
+                    น้ำเปล่าลอย{d.product}
+                  </td>
+                  <td style={{ padding: '9px 10px', textAlign: 'right', fontWeight: 600,
+                    color: d.quantity < 0 ? '#ef4444' : '#94a3b8' }}>
+                    {d.quantity !== null ? d.quantity : <span style={{ color: '#6b7280' }}>NULL</span>}
+                  </td>
+                  <td style={{ padding: '9px 10px', textAlign: 'right', fontWeight: 600,
+                    color: d.netAmount === null ? '#6b7280' : d.netAmount < 0 ? '#ef4444' : '#94a3b8' }}>
+                    {d.netAmount !== null ? '฿' + d.netAmount.toLocaleString() : <span style={{ color: '#6b7280' }}>NULL</span>}
+                  </td>
+                  <td style={{ padding: '9px 10px', color: '#64748b', fontSize: '11.5px' }}>
+                    {d.errorDesc}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {totalCount > details.length && (
+            <div style={{ marginTop: '12px', padding: '10px 12px', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.12)', borderRadius: '8px', fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>
+              ⚠️ แสดงเพียง {details.length} รายการตัวอย่าง · ยังมีอีก <b style={{ color: '#ef4444' }}>{totalCount - details.length} รายการ</b> ที่ยังไม่แสดง (ดูครบใน Database)
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function getTabFromHash() {
   const hash = window.location.hash.replace('#', '');
   return VALID_TABS.includes(hash) ? hash : 'regional';
@@ -672,6 +873,7 @@ function App() {
   const [regionalDetails, setRegionalDetails] = useState(mockRegionalDetail);
   const [syncLogs, setSyncLogs] = useState(mockSyncLogs);
   const [syncDiff, setSyncDiff] = useState(mockSyncDiff);
+  const [selectedErrorLog, setSelectedErrorLog] = useState(null); // For error detail modal
 
   // Sync tab with URL hash
   useEffect(() => {
@@ -979,6 +1181,8 @@ function App() {
 
   return (
     <div>
+      {/* Error Detail Modal */}
+      <ErrorDetailModal log={selectedErrorLog} onClose={() => setSelectedErrorLog(null)} />
       {/* NAVBAR */}
       <nav className="navbar navbar-expand-lg navbar-dark navbar-custom">
         <div className="container-fluid">
@@ -1783,30 +1987,53 @@ function App() {
                                 <td className="text-center font-semibold">{log.TotalRecords?.toLocaleString()}</td>
                                 <td>
                                   {log.errorDetails ? (
-                                    <span style={{ 
-                                      fontSize: '12px', 
-                                      color: '#ef4444', 
-                                      background: 'rgba(239, 68, 68, 0.05)', 
-                                      padding: '3px 8px', 
-                                      borderRadius: '4px', 
-                                      border: '1px solid rgba(239, 68, 68, 0.15)', 
-                                      display: 'inline-block',
-                                      maxWidth: '480px',
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                      whiteSpace: 'nowrap'
-                                    }} title={log.errorDetails}>
-                                      ⚠️ {log.errorDetails}
-                                    </span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                      <span style={{
+                                        fontSize: '12px',
+                                        color: '#ef4444',
+                                        background: 'rgba(239, 68, 68, 0.06)',
+                                        padding: '3px 8px',
+                                        borderRadius: '4px',
+                                        border: '1px solid rgba(239, 68, 68, 0.18)',
+                                        maxWidth: '280px',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                        display: 'inline-block'
+                                      }} title={log.errorDetails}>
+                                        ⚠️ {log.errorDetails}
+                                      </span>
+                                      <button
+                                        id={`err-detail-btn-${log.SyncID}`}
+                                        onClick={() => setSelectedErrorLog(log)}
+                                        style={{
+                                          background: 'linear-gradient(135deg, rgba(239,68,68,0.15) 0%, rgba(239,68,68,0.08) 100%)',
+                                          border: '1px solid rgba(239,68,68,0.35)',
+                                          color: '#ef4444',
+                                          borderRadius: '6px',
+                                          padding: '3px 10px',
+                                          fontSize: '11.5px',
+                                          fontWeight: 600,
+                                          cursor: 'pointer',
+                                          whiteSpace: 'nowrap',
+                                          transition: 'all 0.18s ease',
+                                          fontFamily: "'Prompt', sans-serif"
+                                        }}
+                                        onMouseOver={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.25)'; e.currentTarget.style.borderColor = '#ef4444'; }}
+                                        onMouseOut={e => { e.currentTarget.style.background = 'linear-gradient(135deg, rgba(239,68,68,0.15) 0%, rgba(239,68,68,0.08) 100%)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.35)'; }}
+                                      >
+                                        🔍 ดูรายละเอียด
+                                      </button>
+                                    </div>
                                   ) : (
-                                    <span style={{ 
-                                      fontSize: '12px', 
-                                      color: '#10b981', 
-                                      background: 'rgba(16, 185, 129, 0.05)', 
-                                      padding: '3px 8px', 
-                                      borderRadius: '4px', 
-                                      border: '1px solid rgba(16, 185, 129, 0.15)', 
-                                      display: 'inline-block' 
+                                    <span style={{
+                                      fontSize: '12px',
+                                      color: '#10b981',
+                                      background: 'rgba(16, 185, 129, 0.05)',
+                                      padding: '3px 8px',
+                                      borderRadius: '4px',
+                                      border: '1px solid rgba(16, 185, 129, 0.15)',
+                                      display: 'inline-block'
                                     }}>
                                       ✔️ ไม่มีข้อผิดพลาด
                                     </span>
@@ -1939,7 +2166,11 @@ function App() {
                                 syncDiff.newRecords.map((r, idx) => (
                                   <tr key={r.OrderID || idx}>
                                     <td className="font-semibold text-light">{r.OrderID}</td>
-                                    <td className="text-truncate" style={{ maxWidth: '120px' }}>{r.CustomerName?.replace('บริษัท ', '').replace(' จำกัด', '')}</td>
+                                    <td className="text-truncate" style={{ maxWidth: '130px' }}>
+                                      <span title={r.CustomerName} style={{ cursor: 'help' }}>
+                                        {maskCustomerName(r.CustomerName)}
+                                      </span>
+                                    </td>
                                     <td className="text-truncate" style={{ maxWidth: '140px' }}>{r.ProductName?.replace('น้ำเปล่าลอย', '')}</td>
                                     <td className="text-end font-semibold">{r.Quantity}</td>
                                     <td className="text-end text-success font-semibold">฿{r.NetAmount?.toLocaleString()}</td>
@@ -1983,7 +2214,11 @@ function App() {
                                   return (
                                     <tr key={r.OrderID || idx}>
                                       <td className="font-semibold text-light">{r.OrderID}</td>
-                                      <td className="text-truncate" style={{ maxWidth: '110px' }}>{r.CustomerName?.replace('บริษัท ', '').replace(' จำกัด', '')}</td>
+                                      <td className="text-truncate" style={{ maxWidth: '120px' }}>
+                                        <span title={r.CustomerName} style={{ cursor: 'help' }}>
+                                          {maskCustomerName(r.CustomerName)}
+                                        </span>
+                                      </td>
                                       <td className="text-truncate" style={{ maxWidth: '110px' }}>{r.ProductName?.replace('น้ำเปล่าลอย', '')}</td>
                                       <td className="text-center">
                                         <span className={qtyChanged ? 'text-decoration-line-through text-muted' : ''}>{r.ShowQuantity}</span>
