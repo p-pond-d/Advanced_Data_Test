@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const srcPath = "C:\\Users\\User\\.gemini\\antigravity-ide\\brain\\ca9291a0-175e-4fe1-b7d4-e4208451a8eb\\.system_generated\\steps\\177\\content.md";
+const srcPath = "C:\\Users\\User\\.gemini\\antigravity-ide\\brain\\ca9291a0-175e-4fe1-b7d4-e4208451a8eb\\.system_generated\\steps\\689\\content.md";
 const destPath = path.join(__dirname, 'thailand.svg');
 const publicDir = path.join(__dirname, '..', 'frontend', 'public');
 const outputPath = path.join(publicDir, 'thailand_regions.json');
@@ -13,10 +13,19 @@ try {
     console.log("Created directory:", publicDir);
   }
 
-  // Copy the source file to backend/thailand.svg if it exists
+  // Copy the source file to backend/thailand.svg if it exists, stripping the first few lines of frontmatter
   if (fs.existsSync(srcPath)) {
-    fs.copyFileSync(srcPath, destPath);
-    console.log("SVG file copied to", destPath);
+    const rawContent = fs.readFileSync(srcPath, 'utf8');
+    const lines = rawContent.split(/\r?\n/);
+    const svgStartIndex = lines.findIndex(line => line.trim().startsWith('<svg'));
+    if (svgStartIndex !== -1) {
+      const cleanSvg = lines.slice(svgStartIndex).join('\n');
+      fs.writeFileSync(destPath, cleanSvg, 'utf8');
+      console.log("Clean SVG file written to", destPath);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+      console.log("SVG file copied to", destPath);
+    }
   } else {
     console.log("Source SVG not found at", srcPath, "- checking if destination already exists");
   }
