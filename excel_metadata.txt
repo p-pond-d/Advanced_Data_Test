@@ -1,0 +1,74 @@
+================ EXCEL SCHEMA INSPECTION ================
+Sheet Names: ["README","FactSales","DimProduct","DimCustomer","DimProvince","DimDate"]
+
+Sheet: "README" has 42 rows
+Columns: ["Star Schema Sales Data Mart — Loymalila (ลอยมะลิ)"]
+Sample Row:
+{
+  "Star Schema Sales Data Mart — Loymalila (ลอยมะลิ)": "Data Engineering Project — สำหรับใช้งานกับ Power BI"
+}
+
+Sheet: "FactSales" has 1500 rows
+Columns: ["SalesKey","DateKey","CustomerKey","ProductKey","ProvinceKey","Qty","UnitPrice","SalesAmount","DiscountAmount","NetAmount"]
+Sample Row:
+{
+  "SalesKey": 100001,
+  "DateKey": 20250430,
+  "CustomerKey": 1142,
+  "ProductKey": 2009,
+  "ProvinceKey": 3032,
+  "Qty": 33,
+  "UnitPrice": 32.25,
+  "SalesAmount": 1064.25,
+  "DiscountAmount": 0,
+  "NetAmount": 1064.25
+}
+
+Sheet: "DimProduct" has 15 rows
+Columns: ["ProductKey","ProductName","Category","ProductType","StandardUnitPrice"]
+Sample Row:
+{
+  "ProductKey": 2001,
+  "ProductName": "น้ำเปล่าลอยมะลิ",
+  "Category": "ดอกไม้ไทย",
+  "ProductType": "Hero",
+  "StandardUnitPrice": 35
+}
+
+Sheet: "DimCustomer" has 320 rows
+Columns: ["CustomerKey","CustomerName","CustomerType","ProvinceKey"]
+Sample Row:
+{
+  "CustomerKey": 1001,
+  "CustomerName": "บริษัท Lotus Retail จำกัด",
+  "CustomerType": "Company",
+  "ProvinceKey": 3004
+}
+
+Sheet: "DimProvince" has 77 rows
+Columns: ["ProvinceKey","ProvinceName","Region"]
+Sample Row:
+{
+  "ProvinceKey": 3001,
+  "ProvinceName": "กรุงเทพมหานคร",
+  "Region": "ภาคกลาง"
+}
+
+Sheet: "DimDate" has 365 rows
+Columns: ["DateKey","Date","Year","Quarter","Month","MonthName","MonthNameTH","Day","DayOfWeek","DayNameTH","IsWeekend"]
+Sample Row:
+{
+  "DateKey": 20250101,
+  "Date": "2025-01-01",
+  "Year": 2025,
+  "Quarter": "Q1",
+  "Month": 1,
+  "MonthName": "January",
+  "MonthNameTH": "มกราคม",
+  "Day": 1,
+  "DayOfWeek": 3,
+  "DayNameTH": "พุธ",
+  "IsWeekend": false
+}
+
+========================================================

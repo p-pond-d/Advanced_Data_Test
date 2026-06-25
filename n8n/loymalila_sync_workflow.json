@@ -1,0 +1,72 @@
+{
+  "name": "Pumpui Dashboard",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 5 * * *"
+            }
+          ]
+        }
+      },
+      "id": "b8c369f5-cfb7-44d9-9a5f-82e1cec45281",
+      "name": "Cron Trigger 05:00 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -96,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "IF OBJECT_ID('pumpui_sync_log', 'U') IS NULL\nBEGIN\n    CREATE TABLE pumpui_sync_log (\n        SyncID INT IDENTITY(1,1) PRIMARY KEY,\n        SyncDate DATETIME DEFAULT GETDATE(),\n        NewRecords INT,\n        ModifiedRecords INT,\n        TotalRecords INT\n    );\nEND\n\nDECLARE @ModifiedDetails TABLE (\n    OrderID VARCHAR(50),\n    CustomerName NVARCHAR(255),\n    ProductName NVARCHAR(255),\n    OldNetAmount FLOAT,\n    NewNetAmount FLOAT,\n    OldQuantity INT,\n    NewQuantity INT,\n    OldPrice FLOAT,\n    NewPrice FLOAT\n);\n\nINSERT INTO @ModifiedDetails\nSELECT \n    e.OrderID,\n    e.CustomerName,\n    e.ProductName,\n    s.NetAmount AS OldNetAmount,\n    e.NetAmount AS NewNetAmount,\n    s.Quantity AS OldQuantity,\n    e.Quantity AS NewQuantity,\n    s.Price AS OldPrice,\n    e.Price AS NewPrice\nFROM pumpui_erp e\nINNER JOIN pumpui_show s ON s.OrderID = e.OrderID\nWHERE s.NetAmount <> e.NetAmount OR s.Quantity <> e.Quantity OR s.Price <> e.Price;\n\nDECLARE @new_count INT;\nDECLARE @mod_count INT;\nDECLARE @total_count INT;\n\nSELECT @new_count = COUNT(*) \nFROM pumpui_erp e\nWHERE NOT EXISTS (SELECT 1 FROM pumpui_show s WHERE s.OrderID = e.OrderID);\n\nSELECT @mod_count = COUNT(*) FROM @ModifiedDetails;\n\nSELECT @total_count = COUNT(*) FROM pumpui_erp;\n\nINSERT INTO pumpui_sync_log (SyncDate, NewRecords, ModifiedRecords, TotalRecords)\nVALUES (GETDATE(), @new_count, @mod_count, @total_count);\n\nTRUNCATE TABLE pumpui_show;\nINSERT INTO pumpui_show \nSELECT * FROM pumpui_erp \nWHERE OrderID IS NOT NULL AND OrderDate IS NOT NULL AND CustomerID IS NOT NULL AND ProductID IS NOT NULL AND NetAmount IS NOT NULL AND NetAmount >= 0 AND Quantity IS NOT NULL AND Quantity >= 0 AND Price IS NOT NULL AND Price >= 0 AND Region IS NOT NULL AND Region <> '' AND Province IS NOT NULL AND Province <> '';\n\nSELECT * FROM @ModifiedDetails;"
+      },
+      "id": "d0941dce-d03a-4582-8072-3bbff764119f",
+      "name": "MSSQL Sync Execution",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        128,
+        -48
+      ],
+      "credentials": {
+        "microsoftSql": {
+          "id": "Nof7RjrZiPA5tosn",
+          "name": "Microsoft SQL account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Cron Trigger 05:00 AM": {
+      "main": [
+        [
+          {
+            "node": "MSSQL Sync Execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "4c9b0de6-4249-4112-bbea-4f8c80d02671",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c6ea936472e83d981fde2e1f0a8b6d61fe0dc6b54f3a7d1b0fae6f08b4334cee"
+  },
+  "id": "8hZxs0NTglQYWIDr",
+  "tags": []
+}
