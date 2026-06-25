@@ -638,8 +638,15 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
 
 
 
+const VALID_TABS = ['regional', 'exec', 'customer', 'product', 'dev', 'sync'];
+
+function getTabFromHash() {
+  const hash = window.location.hash.replace('#', '');
+  return VALID_TABS.includes(hash) ? hash : 'regional';
+}
+
 function App() {
-  const [activeTab, setActiveTab] = useState('regional');
+  const [activeTab, setActiveTab] = useState(getTabFromHash);
   const [isLive, setIsLive] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState('ภาคกลาง'); // Default selected region for deep-dive
   
@@ -665,6 +672,21 @@ function App() {
   const [regionalDetails, setRegionalDetails] = useState(mockRegionalDetail);
   const [syncLogs, setSyncLogs] = useState(mockSyncLogs);
   const [syncDiff, setSyncDiff] = useState(mockSyncDiff);
+
+  // Sync tab with URL hash
+  useEffect(() => {
+    const onHashChange = () => {
+      const tab = getTabFromHash();
+      setActiveTab(tab);
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  const handleTabChange = (tab) => {
+    window.location.hash = tab;
+    setActiveTab(tab);
+  };
 
   useEffect(() => {
     // Fetch live backend analytics
@@ -976,37 +998,37 @@ function App() {
             <div className="navbar-nav mx-auto mt-2 mt-lg-0">
               <button 
                 className={`nav-tab-custom ${activeTab === 'regional' ? 'active' : ''}`}
-                onClick={() => setActiveTab('regional')}
+                onClick={() => handleTabChange('regional')}
               >
                 📍 Regional Summary
               </button>
               <button 
                 className={`nav-tab-custom ${activeTab === 'exec' ? 'active' : ''}`}
-                onClick={() => setActiveTab('exec')}
+                onClick={() => handleTabChange('exec')}
               >
                 📊 Executive Overview
               </button>
               <button 
                 className={`nav-tab-custom tab-customer ${activeTab === 'customer' ? 'active' : ''}`}
-                onClick={() => setActiveTab('customer')}
+                onClick={() => handleTabChange('customer')}
               >
                 👥 Customer Analytics
               </button>
               <button 
                 className={`nav-tab-custom tab-product ${activeTab === 'product' ? 'active' : ''}`}
-                onClick={() => setActiveTab('product')}
+                onClick={() => handleTabChange('product')}
               >
                 🧴 Product Analytics
               </button>
               <button 
                 className={`nav-tab-custom tab-dev ${activeTab === 'dev' ? 'active' : ''}`}
-                onClick={() => setActiveTab('dev')}
+                onClick={() => handleTabChange('dev')}
               >
                 🔬 Product Development
               </button>
               <button 
                 className={`nav-tab-custom tab-sync ${activeTab === 'sync' ? 'active' : ''}`}
-                onClick={() => setActiveTab('sync')}
+                onClick={() => handleTabChange('sync')}
               >
                 🔄 Sync History & Preview
               </button>
@@ -1017,7 +1039,7 @@ function App() {
                 <span 
                   className="badge-custom text-warning" 
                   style={{background: 'rgba(245, 158, 11, 0.08)', cursor: 'pointer', border: '1px solid #f59e0b', fontWeight: 'bold'}} 
-                  onClick={() => setActiveTab('sync')}
+                  onClick={() => handleTabChange('sync')}
                 >
                   ⚠️ รอนำเข้า (+{syncDiff.newRecords?.length || 0}, ~{syncDiff.modifiedRecords?.length || 0})
                 </span>
