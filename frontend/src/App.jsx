@@ -265,39 +265,215 @@ const mockSyncDiff = {
   ]
 };
 
-// High-fidelity Stylized Bezier Map of Thailand Regions
-// Geographically Detailed Thailand Map with Interactive 6 Regions
+// Thailand 6-Region Interactive Map — fully self-contained, no external SVG fetch
+// All 6 administrative regions drawn directly as SVG paths (geographically accurate simplified shapes)
 function ThailandMap({ activeRegion, onRegionSelect, regionSales }) {
-  const [paths, setPaths] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [hoveredRegion, setHoveredRegion] = useState(null);
+  const maxSales = Math.max(...Object.values(regionSales), 1);
 
-  const maxSales = Math.max(...Object.values(regionSales)) || 1;
+  // SVG ViewBox: 0 0 310 590  — proportional to Thailand's real shape
+  // Shared border coordinates match exactly between adjacent regions
+  const regions = [
+    {
+      name: 'ภาคเหนือ',
+      d: "M 55,6 L 196,6 L 207,34 L 210,66 L 206,112 L 200,154 L 192,174 L 169,178 L 148,170 L 128,178 L 106,170 L 83,176 L 62,163 L 50,143 L 44,114 L 44,80 L 48,52 Z",
+      labelX: 128, labelY: 96, label: 'เหนือ'
+    },
+    {
+      name: 'ภาคตะวันออกเฉียงเหนือ',
+      d: "M 196,6 L 278,20 L 292,44 L 300,74 L 303,115 L 299,152 L 290,192 L 273,246 L 252,274 L 224,284 L 202,274 L 197,254 L 196,218 L 198,178 L 192,174 L 200,154 L 206,112 L 210,66 L 207,34 Z",
+      labelX: 250, labelY: 175, label: 'อีสาน'
+    },
+    {
+      name: 'ภาคกลาง',
+      d: "M 83,176 L 106,170 L 128,178 L 148,170 L 169,178 L 192,174 L 198,178 L 196,218 L 197,254 L 202,274 L 197,298 L 181,317 L 159,323 L 133,320 L 109,323 L 90,315 L 74,301 L 68,283 L 66,256 L 66,224 Z",
+      labelX: 134, labelY: 254, label: 'กลาง'
+    },
+    {
+      name: 'ภาคตะวันตก',
+      d: "M 44,80 L 44,114 L 50,143 L 62,163 L 83,176 L 66,224 L 66,256 L 68,283 L 66,305 L 50,315 L 32,303 L 18,281 L 14,254 L 14,224 L 18,198 L 24,174 L 30,152 L 34,126 L 38,102 Z",
+      labelX: 40, labelY: 228, label: 'ตก'
+    },
+    {
+      name: 'ภาคตะวันออก',
+      d: "M 202,274 L 224,284 L 252,274 L 266,290 L 272,318 L 260,346 L 236,358 L 210,352 L 197,334 L 194,317 L 197,298 Z",
+      labelX: 234, labelY: 320, label: 'ออก'
+    },
+    {
+      name: 'ภาคใต้',
+      d: "M 50,315 L 66,305 L 68,283 L 74,301 L 90,315 L 109,323 L 133,320 L 159,323 L 181,317 L 197,298 L 194,317 L 197,334 L 204,362 L 196,400 L 186,438 L 176,476 L 166,512 L 155,546 L 145,566 L 132,574 L 120,572 L 108,566 L 104,552 L 106,522 L 108,492 L 108,462 L 104,436 L 92,413 L 78,391 L 62,369 L 48,348 L 38,326 Z",
+      labelX: 118, labelY: 460, label: 'ใต้'
+    }
+  ];
 
-  // 6 regions mapping
-  const regionsMap = {
-    "ภาคเหนือ": ["cmi", "cri", "lpg", "lpn", "mhs", "nan", "pyo", "pre", "utd"],
-    "ภาคตะวันออกเฉียงเหนือ": ["acr", "bkn", "brm", "cpm", "ksn", "kkn", "lei", "msk", "mdh", "npm", "nma", "nbl", "nki", "ret", "snk", "ssk", "srn", "ubn", "udn", "yst"],
-    "ภาคกลาง": ["atg", "bkk", "cnt", "kpt", "lri", "nyk", "npt", "nsw", "nbi", "pte", "pnb", "aya", "pct", "plk", "spk", "skn", "skm", "sri", "sbr", "sth", "uti", "spb"],
-    "ภาคตะวันออก": ["cco", "cti", "cbi", "pri", "ryg", "skw", "trt"],
-    "ภาคตะวันตก": ["kcn", "pbi", "pkk", "rbr", "tak"],
-    "ภาคใต้": ["cpn", "kbi", "nst", "nwt", "ptn", "pna", "plg", "pkt", "rng", "stn", "ska", "sni", "trg", "yla"]
+  const getFillColor = (regionName) => {
+    const baseColor = REGION_COLORS[regionName] || '#94a3b8';
+    const sales = regionSales[regionName] || 0;
+    const ratio = sales / maxSales;
+    const isActive = activeRegion === regionName;
+    const isHovered = hoveredRegion === regionName;
+    if (isActive || isHovered) return baseColor;
+    const opacity = 0.48 + ratio * 0.52;
+    const r = parseInt(baseColor.slice(1, 3), 16);
+    const g = parseInt(baseColor.slice(3, 5), 16);
+    const b = parseInt(baseColor.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
   };
 
+  return (
+    <div className="map-container">
+      <div className="card-header-clean">
+        <h4 className="card-title-clean">🗺️ Thailand Regional Coverage</h4>
+        <span className="small text-muted">คลิกเลือกภาคบนแผนที่</span>
+      </div>
+
+      <div className="map-svg-wrap position-relative" style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '6px 0 4px' }}>
+        <svg
+          viewBox="0 0 310 590"
+          style={{
+            width: '100%',
+            maxWidth: '360px',
+            height: 'auto',
+            maxHeight: '600px',
+            filter: 'drop-shadow(0 6px 28px rgba(0,0,0,0.55))'
+          }}
+        >
+          <defs>
+            <radialGradient id="mapOcean" cx="50%" cy="50%" r="70%">
+              <stop offset="0%" stopColor="#0c1526" />
+              <stop offset="100%" stopColor="#060c18" />
+            </radialGradient>
+            {Object.entries(REGION_COLORS).map(([rName, color]) => (
+              <filter key={rName} id={`glow-${rName.replace(/[^a-z0-9]/gi,'')}`}>
+                <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+                <feMerge>
+                  <feMergeNode in="coloredBlur"/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
+            ))}
+          </defs>
+
+          {/* Ocean background */}
+          <rect x="-10" y="-10" width="330" height="610" fill="url(#mapOcean)" rx="10"/>
+
+          {/* Grid dots for ocean texture */}
+          {[30, 10, 290, 310, 50, 280, 5, 575, 0, 550].map((_, i) => null)}
+
+          {regions.map(region => {
+            const isSelected = activeRegion === region.name;
+            const isHovered = hoveredRegion === region.name;
+            const fill = getFillColor(region.name);
+            const color = REGION_COLORS[region.name] || '#6366f1';
+
+            return (
+              <g key={region.name}>
+                {/* Shadow/glow layer */}
+                {isSelected && (
+                  <path
+                    d={region.d}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth="8"
+                    opacity="0.35"
+                    strokeLinejoin="round"
+                  />
+                )}
+                <path
+                  d={region.d}
+                  fill={fill}
+                  stroke={
+                    isSelected
+                      ? 'rgba(255,255,255,0.95)'
+                      : isHovered
+                      ? 'rgba(255,255,255,0.65)'
+                      : 'rgba(255,255,255,0.18)'
+                  }
+                  strokeWidth={isSelected ? '2.2' : isHovered ? '1.8' : '0.9'}
+                  strokeLinejoin="round"
+                  cursor="pointer"
+                  onClick={() => onRegionSelect(region.name)}
+                  onMouseEnter={() => setHoveredRegion(region.name)}
+                  onMouseLeave={() => setHoveredRegion(null)}
+                  style={{
+                    transition: 'fill 0.28s ease, stroke 0.2s ease, stroke-width 0.2s ease'
+                  }}
+                />
+                {/* Sales bar indicator at bottom of region */}
+                {regionSales[region.name] > 0 && (
+                  <circle
+                    cx={region.labelX}
+                    cy={region.labelY - 16}
+                    r={isSelected ? 5.5 : 3.5}
+                    fill={color}
+                    stroke="rgba(255,255,255,0.85)"
+                    strokeWidth="1.5"
+                    pointerEvents="none"
+                    style={{ transition: 'all 0.25s ease' }}
+                  />
+                )}
+                {/* Region label */}
+                <text
+                  x={region.labelX}
+                  y={region.labelY}
+                  fill={isSelected ? '#ffffff' : isHovered ? '#f1f5f9' : '#cbd5e1'}
+                  fontSize={isSelected ? '16' : isHovered ? '14' : '12.5'}
+                  fontWeight="900"
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  paintOrder="stroke"
+                  stroke="#04080f"
+                  strokeWidth="5"
+                  strokeLinejoin="round"
+                  pointerEvents="none"
+                  style={{ userSelect: 'none', transition: 'all 0.2s ease', fontFamily: "'Prompt', sans-serif" }}
+                >
+                  {region.label}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+
+      {/* Region legend pills */}
+      <div className="mt-2 d-flex justify-content-center flex-wrap gap-1 px-1" style={{ fontSize: '11px' }}>
+        {Object.entries(REGION_COLORS).map(([rName, color]) => {
+          const isActive = activeRegion === rName;
+          return (
+            <span
+              key={rName}
+              onClick={() => onRegionSelect(rName)}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '5px',
+                background: isActive ? `${color}22` : 'rgba(255,255,255,0.04)',
+                border: `1.5px solid ${isActive ? color : 'rgba(255,255,255,0.1)'}`,
+                padding: '3px 10px', borderRadius: '20px',
+                fontWeight: isActive ? '800' : '600',
+                color: isActive ? '#f1f5f9' : '#94a3b8',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: color, flexShrink: 0, boxShadow: isActive ? `0 0 6px ${color}` : 'none' }}></span>
+              {rName.replace('ภาค', '')}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 
-  const labelCoords = {
-    "ภาคเหนือ": { x: 180, y: 220, name: "เหนือ" },
-    "ภาคตะวันออกเฉียงเหนือ": { x: 380, y: 320, name: "ตะวันออกเฉียงเหนือ" },
-    "ภาคกลาง": { x: 225, y: 480, name: "กลาง" },
-    "ภาคตะวันตก": { x: 125, y: 400, name: "ตะวันตก" },
-    "ภาคตะวันออก": { x: 295, y: 560, name: "ตะวันออก" },
-    "ภาคใต้": { x: 180, y: 800, name: "ใต้" }
-  };
 
-  useEffect(() => {
-    // Try to load cached paths first
-    const cached = localStorage.getItem('thailand_detailed_svg_paths_v2');
+
+
+
+
+
+
+
     if (cached) {
       try {
         setPaths(JSON.parse(cached));
@@ -423,7 +599,7 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales }) {
       <div className="map-svg-wrap position-relative">
         {paths ? (
           // Detailed High-Fidelity SVG Map
-          <svg viewBox="0 0 560 1025" style={{ width: '85%', height: 'auto', maxHeight: '420px', transition: 'all 0.3s' }}>
+          <svg viewBox="0 0 560 1025" style={{ width: '100%', height: 'auto', maxHeight: '520px', transition: 'all 0.3s' }}>
             <g id="detailed-map">
               {paths.map(p => {
                 const reg = getRegionOfProvince(p.id);
@@ -436,15 +612,15 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales }) {
                     key={p.id}
                     d={p.d}
                     fill={fill}
-                    stroke={isSelected || isHovered ? '#ffffff' : 'rgba(255, 255, 255, 0.4)'}
-                    strokeWidth={isSelected ? '2' : isHovered ? '1.5' : '0.5'}
+                    stroke={isSelected || isHovered ? '#ffffff' : 'rgba(255, 255, 255, 0.25)'}
+                    strokeWidth={isSelected ? '2.5' : isHovered ? '2.0' : '0.8'}
                     cursor="pointer"
                     onClick={() => reg && onRegionSelect(reg)}
                     onMouseEnter={() => reg && setHoveredRegion(reg)}
                     onMouseLeave={() => setHoveredRegion(null)}
                     style={{
                       transition: 'fill 0.25s ease, stroke 0.25s ease, filter 0.25s ease',
-                      filter: isSelected ? 'drop-shadow(0 4px 8px rgba(0,0,0,0.15))' : isHovered ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' : 'none'
+                      filter: isSelected ? `drop-shadow(0 0 12px ${REGION_COLORS[reg] || 'var(--accent)'})` : isHovered ? 'drop-shadow(0 0 8px rgba(255,255,255,0.4))' : 'none'
                     }}
                   >
                     <title>{p.label} ({reg})</title>
@@ -461,16 +637,16 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales }) {
                   key={regionName}
                   x={x}
                   y={y}
-                  fill={isSelected ? '#4f46e5' : '#111827'}
-                  fontSize={isSelected ? '15' : '12'}
+                  fill={isSelected ? '#ffffff' : '#e5e7eb'}
+                  fontSize={isSelected ? '20' : '15'}
                   fontWeight="800"
                   cursor="pointer"
                   onClick={() => onRegionSelect(regionName)}
                   onMouseEnter={() => setHoveredRegion(regionName)}
                   onMouseLeave={() => setHoveredRegion(null)}
                   paintOrder="stroke"
-                  stroke="#ffffff"
-                  strokeWidth={isSelected ? '5' : '4'}
+                  stroke="#0b0f19"
+                  strokeWidth="6"
                   textAnchor="middle"
                   style={{
                     transition: 'all 0.2s ease',
@@ -484,7 +660,7 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales }) {
           </svg>
         ) : (
           // Fallback Simplified SVG Map
-          <svg viewBox="0 0 300 500" style={{ width: '85%', height: 'auto', maxHeight: '385px' }}>
+          <svg viewBox="0 0 300 500" style={{ width: '100%', height: 'auto', maxHeight: '480px' }}>
             {fallbackRegions.map(r => {
               const isSelected = activeRegion === r.name;
               const isHovered = hoveredRegion === r.name;
@@ -496,25 +672,28 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales }) {
                     d={r.d}
                     fill={fill}
                     stroke="#ffffff"
-                    strokeWidth={isSelected ? '3' : '1.5'}
+                    strokeWidth={isSelected ? '3.5' : '1.8'}
                     cursor="pointer"
                     onClick={() => onRegionSelect(r.name)}
                     onMouseEnter={() => setHoveredRegion(r.name)}
                     onMouseLeave={() => setHoveredRegion(null)}
                     style={{
                       transition: 'all 0.25s ease',
-                      filter: isSelected ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none'
+                      filter: isSelected ? `drop-shadow(0 0 10px ${REGION_COLORS[r.name] || 'var(--accent)'})` : 'none'
                     }}
                   />
                   <text
                     x={r.labelX}
                     y={r.labelY}
-                    fill={isSelected ? '#fff' : '#0f172a'}
-                    fontSize="11"
-                    fontWeight="700"
+                    fill="#ffffff"
+                    fontSize="13"
+                    fontWeight="800"
                     cursor="pointer"
                     pointerEvents="none"
                     textAnchor="middle"
+                    paintOrder="stroke"
+                    stroke="#0b0f19"
+                    strokeWidth="4"
                   >
                     {r.text}
                   </text>
@@ -952,7 +1131,7 @@ function App() {
         {activeTab === 'regional' && (
           <div className="row g-4 mb-5">
             <div className="col-12 col-lg-5">
-              <div className="dashboard-card" style={{ padding: '24px 28px' }}>
+              <div className="dashboard-card" style={{ padding: '16px 12px 12px' }}>
                 <ThailandMap 
                   activeRegion={selectedRegion} 
                   onRegionSelect={setSelectedRegion} 
