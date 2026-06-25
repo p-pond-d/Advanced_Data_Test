@@ -11,8 +11,3 @@ echo.
 echo [2/3] Installing backend and frontend packages...
 call npm run install:all --no-audit --no-fund
 
-echo.
-echo [3/3] Starting backend and frontend concurrently...
-echo Connect to http://localhost:3000 to view your dashboard!
-echo.
-call npm start

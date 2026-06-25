@@ -265,178 +265,349 @@ const mockSyncDiff = {
   ]
 };
 
-// Thailand 6-Region Interactive Map — fully self-contained, no external SVG fetch
-// All 6 administrative regions drawn directly as SVG paths (geographically accurate simplified shapes)
-function ThailandMap({ activeRegion, onRegionSelect, regionSales }) {
+// Province ID to Thai name mapping
+const provinceThaiNames = {
+  "cmi": "เชียงใหม่", "cri": "เชียงราย", "lpg": "ลำปาง", "lpn": "ลำพูน",
+  "mhs": "แม่ฮ่องสอน", "nan": "น่าน", "pyo": "พะเยา", "pre": "แพร่", "utd": "อุตรดิตถ์",
+  "acr": "อำนาจเจริญ", "bkn": "บึงกาฬ", "brm": "บุรีรัมย์", "cpm": "ชัยภูมิ",
+  "ksn": "กาฬสินธุ์", "kkn": "ขอนแก่น", "lei": "เลย", "msk": "มหาสารคาม",
+  "mdh": "มุกดาหาร", "npm": "นครพนม", "nma": "นครราชสีมา", "nbl": "หนองบัวลำภู",
+  "nki": "หนองคาย", "ret": "ร้อยเอ็ด", "snk": "สกลนคร", "ssk": "ศรีสะเกษ",
+  "srn": "สุรินทร์", "ubn": "อุบลราชธานี", "udn": "อุดรธานี", "yst": "ยโสธร",
+  "atg": "อ่างทอง", "bkk": "กรุงเทพมหานคร", "cnt": "ชัยนาท", "kpt": "กำแพงเพชร",
+  "lri": "ลพบุรี", "nyk": "นครนายก", "npt": "นครปฐม", "nsw": "นครสวรรค์",
+  "nbi": "นนทบุรี", "pte": "ปทุมธานี", "pnb": "เพชรบูรณ์", "aya": "พระนครศรีอยุธยา",
+  "pct": "พิจิตร", "plk": "พิษณุโลก", "spk": "สมุทรปราการ", "skn": "สมุทรสาคร",
+  "skm": "สมุทรสงคราม", "sri": "สระบุรี", "sbr": "สิงห์บุรี", "sth": "สุโขทัย",
+  "uti": "อุทัยธานี", "spb": "สุพรรณบุรี",
+  "cco": "ฉะเชิงเทรา", "cti": "จันทบุรี", "cbi": "ชลบุรี", "pri": "ปราจีนบุรี",
+  "ryg": "ระยอง", "skw": "สระแก้ว", "trt": "ตราด",
+  "kcn": "กาญจนบุรี", "pbi": "เพชรบุรี", "pkk": "ประจวบคีรีขันธ์", "rbr": "ราชบุรี", "tak": "ตาก",
+  "cpn": "ชุมพร", "kbi": "กระบี่", "nst": "นครศรีธรรมราช", "nwt": "นราธิวาส",
+  "ptn": "ปัตตานี", "pna": "พังงา", "plg": "พัทลุง", "pkt": "ภูเก็ต",
+  "rng": "ระนอง", "stn": "สตูล", "ska": "สงขลา", "sni": "สุราษฎร์ธานี",
+  "trg": "ตรัง", "yla": "ยะลา"
+};
+
+const labelCoords = {
+  "ภาคเหนือ": { x: 180, y: 220, name: "เหนือ" },
+  "ภาคตะวันออกเฉียงเหนือ": { x: 380, y: 320, name: "อีสาน" },
+  "ภาคกลาง": { x: 230, y: 470, name: "กลาง" },
+  "ภาคตะวันตก": { x: 140, y: 460, name: "ตก" },
+  "ภาคตะวันออก": { x: 340, y: 530, name: "ออก" },
+  "ภาคใต้": { x: 180, y: 780, name: "ใต้" }
+};
+
+function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces = [] }) {
+  const [paths, setPaths] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [hoveredRegion, setHoveredRegion] = useState(null);
+  const [hoveredProvince, setHoveredProvince] = useState(null);
+  const [tooltip, setTooltip] = useState({ show: false, x: 0, y: 0, province: '', region: '', provSales: null });
+
   const maxSales = Math.max(...Object.values(regionSales), 1);
 
-  // SVG ViewBox: 0 0 310 590  — proportional to Thailand's real shape
-  // Shared border coordinates match exactly between adjacent regions
-  const regions = [
-    {
-      name: 'ภาคเหนือ',
-      d: "M 55,6 L 196,6 L 207,34 L 210,66 L 206,112 L 200,154 L 192,174 L 169,178 L 148,170 L 128,178 L 106,170 L 83,176 L 62,163 L 50,143 L 44,114 L 44,80 L 48,52 Z",
-      labelX: 128, labelY: 96, label: 'เหนือ'
-    },
-    {
-      name: 'ภาคตะวันออกเฉียงเหนือ',
-      d: "M 196,6 L 278,20 L 292,44 L 300,74 L 303,115 L 299,152 L 290,192 L 273,246 L 252,274 L 224,284 L 202,274 L 197,254 L 196,218 L 198,178 L 192,174 L 200,154 L 206,112 L 210,66 L 207,34 Z",
-      labelX: 250, labelY: 175, label: 'อีสาน'
-    },
-    {
-      name: 'ภาคกลาง',
-      d: "M 83,176 L 106,170 L 128,178 L 148,170 L 169,178 L 192,174 L 198,178 L 196,218 L 197,254 L 202,274 L 197,298 L 181,317 L 159,323 L 133,320 L 109,323 L 90,315 L 74,301 L 68,283 L 66,256 L 66,224 Z",
-      labelX: 134, labelY: 254, label: 'กลาง'
-    },
-    {
-      name: 'ภาคตะวันตก',
-      d: "M 44,80 L 44,114 L 50,143 L 62,163 L 83,176 L 66,224 L 66,256 L 68,283 L 66,305 L 50,315 L 32,303 L 18,281 L 14,254 L 14,224 L 18,198 L 24,174 L 30,152 L 34,126 L 38,102 Z",
-      labelX: 40, labelY: 228, label: 'ตก'
-    },
-    {
-      name: 'ภาคตะวันออก',
-      d: "M 202,274 L 224,284 L 252,274 L 266,290 L 272,318 L 260,346 L 236,358 L 210,352 L 197,334 L 194,317 L 197,298 Z",
-      labelX: 234, labelY: 320, label: 'ออก'
-    },
-    {
-      name: 'ภาคใต้',
-      d: "M 50,315 L 66,305 L 68,283 L 74,301 L 90,315 L 109,323 L 133,320 L 159,323 L 181,317 L 197,298 L 194,317 L 197,334 L 204,362 L 196,400 L 186,438 L 176,476 L 166,512 L 155,546 L 145,566 L 132,574 L 120,572 L 108,566 L 104,552 L 106,522 L 108,492 L 108,462 L 104,436 L 92,413 L 78,391 L 62,369 L 48,348 L 38,326 Z",
-      labelX: 118, labelY: 460, label: 'ใต้'
-    }
-  ];
+  useEffect(() => {
+    fetch('/thailand_regions.json')
+      .then(res => {
+        if (!res.ok) throw new Error('Not found locally');
+        return res.json();
+      })
+      .then(data => {
+        const flatPaths = [];
+        Object.entries(data).forEach(([regionName, provs]) => {
+          provs.forEach(p => {
+            flatPaths.push({
+              ...p,
+              region: regionName
+            });
+          });
+        });
+        setPaths(flatPaths);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("Detailed SVG load failed, using fallback:", err);
+        setLoading(false);
+      });
+  }, []);
 
-  const getFillColor = (regionName) => {
+  const getFillColor = (regionName, isProvinceHovered) => {
     const baseColor = REGION_COLORS[regionName] || '#94a3b8';
+    
+    // Check if any region is currently active or hovered
+    const hasFocus = activeRegion || hoveredRegion;
+    const isThisRegionFocused = activeRegion === regionName || hoveredRegion === regionName;
+    
+    // Calculate choropleth sales ratio opacity (0.5 to 0.95)
     const sales = regionSales[regionName] || 0;
     const ratio = sales / maxSales;
-    const isActive = activeRegion === regionName;
-    const isHovered = hoveredRegion === regionName;
-    if (isActive || isHovered) return baseColor;
-    const opacity = 0.48 + ratio * 0.52;
+    
+    let opacity = 0.5 + ratio * 0.45;
+    
+    if (hasFocus) {
+      if (isThisRegionFocused) {
+        opacity = isProvinceHovered ? 1.0 : 0.9;
+      } else {
+        opacity = 0.2; // Dim other regions
+      }
+    } else {
+      if (isProvinceHovered) {
+        opacity = 1.0;
+      }
+    }
+    
     const r = parseInt(baseColor.slice(1, 3), 16);
     const g = parseInt(baseColor.slice(3, 5), 16);
     const b = parseInt(baseColor.slice(5, 7), 16);
+    
     return `rgba(${r}, ${g}, ${b}, ${opacity})`;
   };
+
+  const handleMouseMove = (e, p) => {
+    const thName = provinceThaiNames[p.id] || p.label;
+    const topProvRecord = topProvinces.find(tp => tp.n === thName);
+    const provSales = topProvRecord ? topProvRecord.v : null;
+
+    setTooltip({
+      show: true,
+      x: e.clientX + 15,
+      y: e.clientY + 15,
+      province: thName,
+      region: p.region,
+      provSales
+    });
+  };
+
+  const handleMouseLeave = () => {
+    setTooltip(t => ({ ...t, show: false }));
+    setHoveredProvince(null);
+  };
+
+  // Fallback simplified regions if loading/fails
+  const fallbackRegions = [
+    { name: 'ภาคเหนือ', d: "M 55,6 L 196,6 L 207,34 L 210,66 L 206,112 L 200,154 L 192,174 L 169,178 L 148,170 L 128,178 L 106,170 L 83,176 L 62,163 L 50,143 L 44,114 L 44,80 L 48,52 Z", labelX: 128, labelY: 96, label: 'เหนือ' },
+    { name: 'ภาคตะวันออกเฉียงเหนือ', d: "M 196,6 L 278,20 L 292,44 L 300,74 L 303,115 L 299,152 L 290,192 L 273,246 L 252,274 L 224,284 L 202,274 L 197,254 L 196,218 L 198,178 L 192,174 L 200,154 L 206,112 L 210,66 L 207,34 Z", labelX: 250, labelY: 175, label: 'อีสาน' },
+    { name: 'ภาคกลาง', d: "M 83,176 L 106,170 L 128,178 L 148,170 L 169,178 L 192,174 L 198,178 L 196,218 L 197,254 L 202,274 L 197,298 L 181,317 L 159,323 L 133,320 L 109,323 L 90,315 L 74,301 L 68,283 L 66,256 L 66,224 Z", labelX: 134, labelY: 254, label: 'กลาง' },
+    { name: 'ภาคตะวันตก', d: "M 44,80 L 44,114 L 50,143 L 62,163 L 83,176 L 66,224 L 66,256 L 68,283 L 66,305 L 50,315 L 32,303 L 18,281 L 14,254 L 14,224 L 18,198 L 24,174 L 30,152 L 34,126 L 38,102 Z", labelX: 40, labelY: 228, label: 'ตก' },
+    { name: 'ภาคตะวันออก', d: "M 202,274 L 224,284 L 252,274 L 266,290 L 272,318 L 260,346 L 236,358 L 210,352 L 197,334 L 194,317 L 197,298 Z", labelX: 234, labelY: 320, label: 'ออก' },
+    { name: 'ภาคใต้', d: "M 50,315 L 66,305 L 68,283 L 74,301 L 90,315 L 109,323 L 133,320 L 159,323 L 181,317 L 197,298 L 194,317 L 197,334 L 204,362 L 196,400 L 186,438 L 176,476 L 166,512 L 155,546 L 145,566 L 132,574 L 120,572 L 108,566 L 104,552 L 106,522 L 108,492 L 108,462 L 104,436 L 92,413 L 78,391 L 62,369 L 48,348 L 38,326 Z", labelX: 118, labelY: 460, label: 'ใต้' }
+  ];
 
   return (
     <div className="map-container">
       <div className="card-header-clean">
         <h4 className="card-title-clean">🗺️ Thailand Regional Coverage</h4>
-        <span className="small text-muted">คลิกเลือกภาคบนแผนที่</span>
+        {loading ? (
+          <span className="small text-danger animate-pulse">กำลังโหลดแผนที่...</span>
+        ) : (
+          <span className="small text-muted">คลิกเลือกภาคบนแผนที่</span>
+        )}
       </div>
 
       <div className="map-svg-wrap position-relative" style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '6px 0 4px' }}>
-        <svg
-          viewBox="0 0 310 590"
-          style={{
-            width: '100%',
-            maxWidth: '360px',
-            height: 'auto',
-            maxHeight: '600px',
-            filter: 'drop-shadow(0 6px 28px rgba(0,0,0,0.55))'
-          }}
-        >
-          <defs>
-            <radialGradient id="mapOcean" cx="50%" cy="50%" r="70%">
-              <stop offset="0%" stopColor="#0c1526" />
-              <stop offset="100%" stopColor="#060c18" />
-            </radialGradient>
-            {Object.entries(REGION_COLORS).map(([rName, color]) => (
-              <filter key={rName} id={`glow-${rName.replace(/[^a-z0-9]/gi,'')}`}>
-                <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
-                <feMerge>
-                  <feMergeNode in="coloredBlur"/>
-                  <feMergeNode in="SourceGraphic"/>
-                </feMerge>
-              </filter>
-            ))}
-          </defs>
+        {paths.length > 0 ? (
+          <svg
+            viewBox="0 0 560 1025"
+            style={{
+              width: '100%',
+              maxWidth: '360px',
+              height: 'auto',
+              maxHeight: '520px',
+              filter: 'drop-shadow(0 8px 32px rgba(0,0,0,0.65))',
+              transition: 'all 0.3s'
+            }}
+          >
+            <defs>
+              <radialGradient id="mapOcean" cx="50%" cy="50%" r="70%">
+                <stop offset="0%" stopColor="#0c1526" />
+                <stop offset="100%" stopColor="#050a14" />
+              </radialGradient>
+            </defs>
 
-          {/* Ocean background */}
-          <rect x="-10" y="-10" width="330" height="610" fill="url(#mapOcean)" rx="10"/>
+            {/* Ocean background */}
+            <rect x="-20" y="-20" width="600" height="1065" fill="url(#mapOcean)" rx="16"/>
 
-          {/* Grid dots for ocean texture */}
-          {[30, 10, 290, 310, 50, 280, 5, 575, 0, 550].map((_, i) => null)}
+            <g id="detailed-map">
+              {paths.map(p => {
+                const reg = p.region;
+                const isSelected = activeRegion === reg;
+                const isHovered = hoveredRegion === reg;
+                const isProvHovered = hoveredProvince === p.id;
+                const fill = getFillColor(reg, isProvHovered);
+                const color = REGION_COLORS[reg] || '#6366f1';
 
-          {regions.map(region => {
-            const isSelected = activeRegion === region.name;
-            const isHovered = hoveredRegion === region.name;
-            const fill = getFillColor(region.name);
-            const color = REGION_COLORS[region.name] || '#6366f1';
-
-            return (
-              <g key={region.name}>
-                {/* Shadow/glow layer */}
-                {isSelected && (
+                return (
                   <path
-                    d={region.d}
-                    fill="none"
-                    stroke={color}
-                    strokeWidth="8"
-                    opacity="0.35"
-                    strokeLinejoin="round"
+                    key={p.id}
+                    d={p.d}
+                    fill={fill}
+                    stroke={
+                      isProvHovered
+                        ? '#ffffff'
+                        : (isSelected || isHovered)
+                        ? 'rgba(255, 255, 255, 0.5)'
+                        : 'rgba(255, 255, 255, 0.12)'
+                    }
+                    strokeWidth={isProvHovered ? '2.0' : (isSelected || isHovered) ? '1.1' : '0.5'}
+                    cursor="pointer"
+                    onClick={() => onRegionSelect(reg)}
+                    onMouseEnter={() => {
+                      setHoveredRegion(reg);
+                      setHoveredProvince(p.id);
+                    }}
+                    onMouseMove={(e) => handleMouseMove(e, p)}
+                    onMouseLeave={handleMouseLeave}
+                    style={{
+                      transition: 'fill 0.25s ease, stroke 0.2s ease, stroke-width 0.2s ease',
+                      filter: isSelected ? `drop-shadow(0 0 4px ${color}88)` : 'none'
+                    }}
                   />
-                )}
-                <path
-                  d={region.d}
-                  fill={fill}
-                  stroke={
-                    isSelected
-                      ? 'rgba(255,255,255,0.95)'
-                      : isHovered
-                      ? 'rgba(255,255,255,0.65)'
-                      : 'rgba(255,255,255,0.18)'
-                  }
-                  strokeWidth={isSelected ? '2.2' : isHovered ? '1.8' : '0.9'}
-                  strokeLinejoin="round"
-                  cursor="pointer"
-                  onClick={() => onRegionSelect(region.name)}
-                  onMouseEnter={() => setHoveredRegion(region.name)}
-                  onMouseLeave={() => setHoveredRegion(null)}
-                  style={{
-                    transition: 'fill 0.28s ease, stroke 0.2s ease, stroke-width 0.2s ease'
-                  }}
-                />
-                {/* Sales bar indicator at bottom of region */}
-                {regionSales[region.name] > 0 && (
-                  <circle
-                    cx={region.labelX}
-                    cy={region.labelY - 16}
-                    r={isSelected ? 5.5 : 3.5}
-                    fill={color}
-                    stroke="rgba(255,255,255,0.85)"
-                    strokeWidth="1.5"
-                    pointerEvents="none"
-                    style={{ transition: 'all 0.25s ease' }}
-                  />
-                )}
-                {/* Region label */}
+                );
+              })}
+            </g>
+
+            {/* Region Labels */}
+            {Object.entries(labelCoords).map(([regionName, { x, y, name }]) => {
+              const isSelected = activeRegion === regionName;
+              const isHovered = hoveredRegion === regionName;
+
+              return (
                 <text
-                  x={region.labelX}
-                  y={region.labelY}
-                  fill={isSelected ? '#ffffff' : isHovered ? '#f1f5f9' : '#cbd5e1'}
-                  fontSize={isSelected ? '16' : isHovered ? '14' : '12.5'}
-                  fontWeight="900"
-                  textAnchor="middle"
-                  dominantBaseline="middle"
+                  key={regionName}
+                  x={x}
+                  y={y}
+                  fill={isSelected || isHovered ? '#ffffff' : '#94a3b8'}
+                  fontSize={isSelected ? '24' : isHovered ? '21' : '17'}
+                  fontWeight="950"
+                  cursor="pointer"
+                  onClick={() => onRegionSelect(regionName)}
+                  onMouseEnter={() => setHoveredRegion(regionName)}
+                  onMouseLeave={() => setHoveredRegion(null)}
                   paintOrder="stroke"
                   stroke="#04080f"
-                  strokeWidth="5"
+                  strokeWidth="6"
                   strokeLinejoin="round"
-                  pointerEvents="none"
-                  style={{ userSelect: 'none', transition: 'all 0.2s ease', fontFamily: "'Prompt', sans-serif" }}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  style={{
+                    transition: 'all 0.2s ease',
+                    userSelect: 'none',
+                    fontFamily: "'Prompt', sans-serif"
+                  }}
                 >
-                  {region.label}
+                  {name}
                 </text>
-              </g>
-            );
-          })}
-        </svg>
+              );
+            })}
+          </svg>
+        ) : (
+          <svg
+            viewBox="0 0 310 590"
+            style={{
+              width: '100%',
+              maxWidth: '360px',
+              height: 'auto',
+              maxHeight: '600px',
+              filter: 'drop-shadow(0 6px 28px rgba(0,0,0,0.55))'
+            }}
+          >
+            <defs>
+              <radialGradient id="mapOcean" cx="50%" cy="50%" r="70%">
+                <stop offset="0%" stopColor="#0c1526" />
+                <stop offset="100%" stopColor="#060c18" />
+              </radialGradient>
+            </defs>
+            <rect x="-10" y="-10" width="330" height="610" fill="url(#mapOcean)" rx="10"/>
+
+            {fallbackRegions.map(region => {
+              const isSelected = activeRegion === region.name;
+              const isHovered = hoveredRegion === region.name;
+              const fill = getFillColor(region.name, false);
+
+              return (
+                <g key={region.name}>
+                  <path
+                    d={region.d}
+                    fill={fill}
+                    stroke={
+                      isSelected
+                        ? 'rgba(255,255,255,0.95)'
+                        : isHovered
+                        ? 'rgba(255,255,255,0.65)'
+                        : 'rgba(255,255,255,0.18)'
+                    }
+                    strokeWidth={isSelected ? '2.2' : isHovered ? '1.8' : '0.9'}
+                    strokeLinejoin="round"
+                    cursor="pointer"
+                    onClick={() => onRegionSelect(region.name)}
+                    onMouseEnter={() => setHoveredRegion(region.name)}
+                    onMouseLeave={() => setHoveredRegion(null)}
+                    style={{
+                      transition: 'fill 0.28s ease, stroke 0.2s ease, stroke-width 0.2s ease'
+                    }}
+                  />
+                  <text
+                    x={region.labelX}
+                    y={region.labelY}
+                    fill={isSelected ? '#ffffff' : isHovered ? '#f1f5f9' : '#cbd5e1'}
+                    fontSize={isSelected ? '16' : isHovered ? '14' : '12.5'}
+                    fontWeight="900"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    paintOrder="stroke"
+                    stroke="#04080f"
+                    strokeWidth="5"
+                    strokeLinejoin="round"
+                    pointerEvents="none"
+                    style={{ userSelect: 'none', transition: 'all 0.2s ease', fontFamily: "'Prompt', sans-serif" }}
+                  >
+                    {region.label}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        )}
+
+        {/* Custom Tooltip */}
+        {tooltip.show && (
+          <div
+            style={{
+              position: 'fixed',
+              left: tooltip.x,
+              top: tooltip.y,
+              zIndex: 1000,
+              pointerEvents: 'none',
+              background: 'rgba(15, 23, 42, 0.95)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              backdropFilter: 'blur(12px)',
+              padding: '12px 16px',
+              borderRadius: '10px',
+              color: '#fff',
+              fontSize: '13px',
+              boxShadow: '0 10px 30px -10px rgba(0, 0, 0, 0.7), 0 0 16px rgba(99, 102, 241, 0.25)',
+              fontFamily: "'Prompt', sans-serif"
+            }}
+          >
+            <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>📍 {tooltip.province}</span>
+              {tooltip.provSales !== null && (
+                <span style={{ fontSize: '10px', background: 'var(--accent)', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontWeight: '800' }}>Top Province</span>
+              )}
+            </div>
+            <div style={{ color: '#94a3b8', marginBottom: '6px' }}>ภูมิภาค: {tooltip.region}</div>
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '6px', fontSize: '12px' }}>
+              {tooltip.provSales !== null ? (
+                <div style={{ marginBottom: '3px' }}>ยอดขายจังหวัด: <span style={{ color: 'var(--accent-hover)', fontWeight: 'bold' }}>{fmtFull(tooltip.provSales)}</span></div>
+              ) : null}
+              <div>ยอดขายภาค: <span style={{ color: '#fff', fontWeight: 'bold' }}>{fmtFull(regionSales[tooltip.region] || 0)}</span></div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Region legend pills */}
+      {/* Region Legend pills */}
       <div className="mt-2 d-flex justify-content-center flex-wrap gap-1 px-1" style={{ fontSize: '11px' }}>
         {Object.entries(REGION_COLORS).map(([rName, color]) => {
           const isActive = activeRegion === rName;
@@ -466,265 +637,6 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales }) {
 }
 
 
-
-
-
-
-
-
-
-
-    if (cached) {
-      try {
-        setPaths(JSON.parse(cached));
-        setLoading(false);
-        return;
-      } catch (e) {
-        console.error("Cached paths parse error:", e);
-      }
-    }
-
-    // Try local public folder first
-    fetch('/thailand_regions.json')
-      .then(res => {
-        if (!res.ok) throw new Error('Not found locally');
-        return res.json();
-      })
-      .then(data => {
-        const flatPaths = [];
-        Object.entries(data).forEach(([region, provs]) => {
-          provs.forEach(p => {
-            flatPaths.push(p);
-          });
-        });
-        if (flatPaths.length > 0 && flatPaths[0].d && flatPaths[0].d.length > 10) {
-          setPaths(flatPaths);
-          localStorage.setItem('thailand_detailed_svg_paths_v2', JSON.stringify(flatPaths));
-          setLoading(false);
-        } else {
-          throw new Error('Local JSON path data is invalid or empty');
-        }
-      })
-      .catch(() => {
-        // Fetch from GitHub raw as robust fallback
-        fetch('https://raw.githubusercontent.com/VictorCazanave/svg-maps/master/packages/thailand/thailand.svg')
-          .then(res => {
-            if (!res.ok) throw new Error('GitHub fetch failed');
-            return res.text();
-          })
-          .then(svgText => {
-            const pathRegex = /<path\s+([^>]+)>/g;
-            let match;
-            const extracted = [];
-            while ((match = pathRegex.exec(svgText)) !== null) {
-              const tagContent = match[1];
-              const idMatch = /id="([^"]+)"/.exec(tagContent);
-              const labelMatch = /aria-label="([^"]+)"/.exec(tagContent);
-              const dMatch = /\bd="([^"]+)"/s.exec(tagContent); // use \b to avoid matching the 'd' in id="..."
-              if (idMatch && labelMatch && dMatch) {
-                extracted.push({
-                  id: idMatch[1],
-                  label: labelMatch[1],
-                  d: dMatch[1].replace(/\s+/g, ' ').trim()
-                });
-              }
-            }
-            if (extracted.length > 0) {
-              setPaths(extracted);
-              localStorage.setItem('thailand_detailed_svg_paths_v2', JSON.stringify(extracted));
-            }
-            setLoading(false);
-          })
-          .catch(err => {
-            console.error("Detailed SVG load failed, using fallback:", err);
-            setLoading(false);
-          });
-      });
-  }, []);
-
-  const getRegionOfProvince = (provId) => {
-    for (const [region, ids] of Object.entries(regionsMap)) {
-      if (ids.includes(provId)) return region;
-    }
-    return null;
-  };
-
-  const getFillColor = (regionName) => {
-    const baseColor = REGION_COLORS[regionName] || '#cbd5e1';
-    const sales = regionSales[regionName] || 0;
-    const ratio = sales / maxSales;
-
-    const isActive = activeRegion === regionName;
-    const isHovered = hoveredRegion === regionName;
-
-    if (isActive) {
-      return baseColor; // Active region: full reference color vibrancy
-    }
-
-    if (isHovered) {
-      // Glow/blend on hover
-      return baseColor; 
-    }
-
-    // Choropleth shading: blend color based on sales ratio (opacity from 0.65 to 1.0)
-    const opacity = 0.65 + ratio * 0.35;
-    const r = parseInt(baseColor.substring(1, 3), 16);
-    const g = parseInt(baseColor.substring(3, 5), 16);
-    const b = parseInt(baseColor.substring(5, 7), 16);
-    
-    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-  };
-
-  // Fallback simplified geometry if raw SVG is loading or fails
-  const fallbackRegions = [
-    { name: 'ภาคเหนือ', d: "M85,50 C100,25 145,25 158,50 C170,72 165,115 145,155 C128,172 98,172 90,140 C80,118 78,75 85,50 Z", labelX: 122, labelY: 98, text: "เหนือ" },
-    { name: 'ภาคตะวันออกเฉียงเหนือ', d: "M158,50 C182,50 225,65 245,108 C255,138 245,195 200,222 C178,230 162,198 152,175 C146,145 152,105 158,50 Z", labelX: 198, labelY: 145, text: "อีสาน" },
-    { name: 'ภาคกลาง', d: "M120,170 C135,170 148,172 154,198 C158,228 145,248 130,248 C118,248 114,222 110,198 C110,178 114,170 120,170 Z", labelX: 132, labelY: 213, text: "กลาง" },
-    { name: 'ภาคตะวันตก', d: "M90,140 C100,165 110,198 110,238 C105,252 90,258 80,252 C70,245 72,210 75,172 C80,142 85,132 90,140 Z", labelX: 88, labelY: 195, text: "ตก" },
-    { name: 'ภาคตะวันออก', d: "M154,198 C170,198 190,208 198,228 C202,248 190,270 175,270 C165,270 160,248 154,228 Z", labelX: 176, labelY: 238, text: "ออก" },
-    { name: 'ภาคใต้', d: "M116,248 C124,248 123,268 120,295 C116,325 122,365 128,405 C132,435 138,475 124,475 C114,475 108,425 105,385 C102,345 106,295 106,268 C106,253 110,248 116,248 Z", labelX: 116, labelY: 360, text: "ใต้" }
-  ];
-
-  return (
-    <div className="map-container">
-      <div className="card-header-clean">
-        <h4 className="card-title-clean">🗺️ Thailand Regional Coverage</h4>
-        {loading ? (
-          <span className="small text-danger animate-pulse">กำลังโหลดแผนที่...</span>
-        ) : (
-          <span className="small text-muted">คลิกเลือกภาคบนแผนที่</span>
-        )}
-      </div>
-
-      <div className="map-svg-wrap position-relative">
-        {paths ? (
-          // Detailed High-Fidelity SVG Map
-          <svg viewBox="0 0 560 1025" style={{ width: '100%', height: 'auto', maxHeight: '520px', transition: 'all 0.3s' }}>
-            <g id="detailed-map">
-              {paths.map(p => {
-                const reg = getRegionOfProvince(p.id);
-                const isSelected = activeRegion === reg;
-                const isHovered = hoveredRegion === reg;
-                const fill = getFillColor(reg);
-
-                return (
-                  <path
-                    key={p.id}
-                    d={p.d}
-                    fill={fill}
-                    stroke={isSelected || isHovered ? '#ffffff' : 'rgba(255, 255, 255, 0.25)'}
-                    strokeWidth={isSelected ? '2.5' : isHovered ? '2.0' : '0.8'}
-                    cursor="pointer"
-                    onClick={() => reg && onRegionSelect(reg)}
-                    onMouseEnter={() => reg && setHoveredRegion(reg)}
-                    onMouseLeave={() => setHoveredRegion(null)}
-                    style={{
-                      transition: 'fill 0.25s ease, stroke 0.25s ease, filter 0.25s ease',
-                      filter: isSelected ? `drop-shadow(0 0 12px ${REGION_COLORS[reg] || 'var(--accent)'})` : isHovered ? 'drop-shadow(0 0 8px rgba(255,255,255,0.4))' : 'none'
-                    }}
-                  >
-                    <title>{p.label} ({reg})</title>
-                  </path>
-                );
-              })}
-            </g>
-
-            {/* Premium Labels with White Outline Glow */}
-            {Object.entries(labelCoords).map(([regionName, { x, y, name }]) => {
-              const isSelected = activeRegion === regionName;
-              return (
-                <text
-                  key={regionName}
-                  x={x}
-                  y={y}
-                  fill={isSelected ? '#ffffff' : '#e5e7eb'}
-                  fontSize={isSelected ? '20' : '15'}
-                  fontWeight="800"
-                  cursor="pointer"
-                  onClick={() => onRegionSelect(regionName)}
-                  onMouseEnter={() => setHoveredRegion(regionName)}
-                  onMouseLeave={() => setHoveredRegion(null)}
-                  paintOrder="stroke"
-                  stroke="#0b0f19"
-                  strokeWidth="6"
-                  textAnchor="middle"
-                  style={{
-                    transition: 'all 0.2s ease',
-                    userSelect: 'none'
-                  }}
-                >
-                  {name}
-                </text>
-              );
-            })}
-          </svg>
-        ) : (
-          // Fallback Simplified SVG Map
-          <svg viewBox="0 0 300 500" style={{ width: '100%', height: 'auto', maxHeight: '480px' }}>
-            {fallbackRegions.map(r => {
-              const isSelected = activeRegion === r.name;
-              const isHovered = hoveredRegion === r.name;
-              const fill = getFillColor(r.name);
-
-              return (
-                <g key={r.name}>
-                  <path
-                    d={r.d}
-                    fill={fill}
-                    stroke="#ffffff"
-                    strokeWidth={isSelected ? '3.5' : '1.8'}
-                    cursor="pointer"
-                    onClick={() => onRegionSelect(r.name)}
-                    onMouseEnter={() => setHoveredRegion(r.name)}
-                    onMouseLeave={() => setHoveredRegion(null)}
-                    style={{
-                      transition: 'all 0.25s ease',
-                      filter: isSelected ? `drop-shadow(0 0 10px ${REGION_COLORS[r.name] || 'var(--accent)'})` : 'none'
-                    }}
-                  />
-                  <text
-                    x={r.labelX}
-                    y={r.labelY}
-                    fill="#ffffff"
-                    fontSize="13"
-                    fontWeight="800"
-                    cursor="pointer"
-                    pointerEvents="none"
-                    textAnchor="middle"
-                    paintOrder="stroke"
-                    stroke="#0b0f19"
-                    strokeWidth="4"
-                  >
-                    {r.text}
-                  </text>
-                </g>
-              );
-            })}
-          </svg>
-        )}
-      </div>
-
-      <div className="mt-2 d-flex justify-content-center flex-wrap gap-2 px-2" style={{ fontSize: '12px', fontWeight: 'bold' }}>
-        {Object.entries(REGION_COLORS).map(([rName, color]) => (
-          <span 
-            className="d-flex align-items-center gap-1 cursor-pointer px-2 py-1 rounded transition"
-            key={rName}
-            onClick={() => onRegionSelect(rName)}
-            style={{
-              background: activeRegion === rName ? 'var(--accent-light)' : 'transparent',
-              border: activeRegion === rName ? '1.5px solid var(--accent)' : '1.5px solid transparent',
-              fontWeight: activeRegion === rName ? '800' : '600',
-              color: activeRegion === rName ? 'var(--text-primary)' : 'var(--text-secondary)'
-            }}
-          >
-            <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', background: color, border: '1px solid rgba(0,0,0,0.15)' }}></span> 
-            {rName.replace('ภาค', '')}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function App() {
   const [activeTab, setActiveTab] = useState('regional');
@@ -1136,6 +1048,7 @@ function App() {
                   activeRegion={selectedRegion} 
                   onRegionSelect={setSelectedRegion} 
                   regionSales={regionSales} 
+                  topProvinces={topProvinces}
                 />
               </div>
             </div>
