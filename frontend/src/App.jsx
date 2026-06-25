@@ -347,9 +347,9 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
     
     if (hasFocus) {
       if (isThisRegionFocused) {
-        opacity = isProvinceHovered ? 1.0 : 0.9;
+        opacity = isProvinceHovered ? 1.0 : 0.95;
       } else {
-        opacity = 0.2; // Dim other regions
+        opacity = 0.45; // Dim other regions
       }
     } else {
       if (isProvinceHovered) {
