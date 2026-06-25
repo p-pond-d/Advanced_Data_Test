@@ -28,8 +28,29 @@ ChartJS.register(
   Filler
 );
 
-// Crimson/Rose/Burgundy Red Theme Palette
-const COLORS = ['#e11d48', '#be123c', '#fb7185', '#fda4af', '#f43f5e', '#9f1239'];
+// Diverse Multi-Color Neon Palette
+const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#06b6d4', '#ec4899', '#3b82f6'];
+
+const CATEGORY_COLORS = {
+  'ดอกไม้ไทย': '#ec4899',
+  'ผลไม้สดชื่น': '#10b981',
+  'สมุนไพร': '#f59e0b',
+  'Premium': '#06b6d4'
+};
+
+const CUSTOMER_COLORS = {
+  'Company': '#6366f1',
+  'Individual': '#ec4899'
+};
+
+const REGION_COLORS = {
+  "ภาคเหนือ": "#10b981",         // Emerald Green
+  "ภาคตะวันออกเฉียงเหนือ": "#f59e0b", // Amber Orange
+  "ภาคกลาง": "#6366f1",         // Electric Indigo
+  "ภาคตะวันตก": "#ec4899",       // Vibrant Pink
+  "ภาคตะวันออก": "#06b6d4",       // Neon Cyan
+  "ภาคใต้": "#3b82f6"            // Royal Blue
+};
 
 const fmt = v => '฿' + (v / 1000).toFixed(0) + 'K';
 const fmtFull = v => '฿' + v.toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -43,11 +64,11 @@ const chartDefaults = {
   plugins: {
     legend: { display: false },
     tooltip: {
-      backgroundColor: 'rgba(255, 255, 255, 0.98)',
-      borderColor: '#e2e8f0',
+      backgroundColor: '#1e293b',
+      borderColor: '#334155',
       borderWidth: 1,
-      titleColor: '#0f172a',
-      bodyColor: '#64748b',
+      titleColor: '#f8fafc',
+      bodyColor: '#cbd5e1',
       padding: 12,
       cornerRadius: 10,
       boxPadding: 6,
@@ -59,12 +80,12 @@ const chartDefaults = {
 const lightScales = {
   x: { 
     grid: { display: false }, 
-    ticks: { color: '#64748b', font: { size: 11 } } 
+    ticks: { color: '#94a3b8', font: { size: 11 } } 
   },
   y: { 
-    border: { dash: [4, 4], color: 'rgba(226, 232, 240, 0.8)' }, 
-    grid: { color: 'rgba(226, 232, 240, 0.8)', drawBorder: false }, 
-    ticks: { color: '#64748b', font: { size: 11 } } 
+    border: { dash: [4, 4], color: 'rgba(255, 255, 255, 0.08)' }, 
+    grid: { color: 'rgba(255, 255, 255, 0.08)', drawBorder: false }, 
+    ticks: { color: '#94a3b8', font: { size: 11 } } 
   }
 };
 
@@ -263,15 +284,7 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales }) {
     "ภาคใต้": ["cpn", "kbi", "nst", "nwt", "ptn", "pna", "plg", "pkt", "rng", "stn", "ska", "sni", "trg", "yla"]
   };
 
-  // Base colors matching the reference map
-  const REGION_COLORS = {
-    "ภาคเหนือ": "#b6d47d",         // Olive green
-    "ภาคตะวันออกเฉียงเหนือ": "#eeab7c", // Peach/orange
-    "ภาคกลาง": "#df7373",         // Red/rose
-    "ภาคตะวันตก": "#a293c2",       // Lavender purple
-    "ภาคตะวันออก": "#97c5e2",       // Sky blue
-    "ภาคใต้": "#6497c2"            // Blue
-  };
+
 
   const labelCoords = {
     "ภาคเหนือ": { x: 180, y: 220, name: "เหนือ" },
@@ -377,8 +390,8 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales }) {
       return baseColor; 
     }
 
-    // Choropleth shading: blend color based on sales ratio (opacity from 0.45 to 1.0)
-    const opacity = 0.45 + ratio * 0.55;
+    // Choropleth shading: blend color based on sales ratio (opacity from 0.65 to 1.0)
+    const opacity = 0.65 + ratio * 0.35;
     const r = parseInt(baseColor.substring(1, 3), 16);
     const g = parseInt(baseColor.substring(3, 5), 16);
     const b = parseInt(baseColor.substring(5, 7), 16);
@@ -448,7 +461,7 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales }) {
                   key={regionName}
                   x={x}
                   y={y}
-                  fill={isSelected ? '#9f1239' : '#0f172a'}
+                  fill={isSelected ? '#4f46e5' : '#111827'}
                   fontSize={isSelected ? '15' : '12'}
                   fontWeight="800"
                   cursor="pointer"
@@ -519,7 +532,7 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales }) {
             key={rName}
             onClick={() => onRegionSelect(rName)}
             style={{
-              background: activeRegion === rName ? 'rgba(225,29,72,0.08)' : 'transparent',
+              background: activeRegion === rName ? 'var(--accent-light)' : 'transparent',
               border: activeRegion === rName ? '1.5px solid var(--accent)' : '1.5px solid transparent',
               fontWeight: activeRegion === rName ? '800' : '600',
               color: activeRegion === rName ? 'var(--text-primary)' : 'var(--text-secondary)'
@@ -653,19 +666,19 @@ function App() {
     labels: monthlyTrends.map(d => d.m),
     datasets: [{
       data: monthlyTrends.map(d => d.v),
-      borderColor: '#e11d48',
+      borderColor: '#6366f1',
       backgroundColor: (context) => {
         const chart = context.chart;
         const { ctx, chartArea } = chart;
         if (!chartArea) return null;
         const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-        gradient.addColorStop(0, 'rgba(225, 29, 72, 0.15)');
-        gradient.addColorStop(1, 'rgba(225, 29, 72, 0.0)');
+        gradient.addColorStop(0, 'rgba(99, 102, 241, 0.2)');
+        gradient.addColorStop(1, 'rgba(99, 102, 241, 0.0)');
         return gradient;
       },
       fill: true,
       tension: 0.4,
-      pointBackgroundColor: '#e11d48',
+      pointBackgroundColor: '#6366f1',
       pointBorderColor: '#fff',
       pointBorderWidth: 2,
       pointRadius: 4,
@@ -678,7 +691,7 @@ function App() {
     labels: Object.keys(regionSales),
     datasets: [{
       data: Object.values(regionSales),
-      backgroundColor: COLORS,
+      backgroundColor: Object.keys(regionSales).map(r => REGION_COLORS[r] || '#6366f1'),
       borderWidth: 0,
       hoverOffset: 10
     }]
@@ -691,11 +704,14 @@ function App() {
       backgroundColor: (context) => {
         const chart = context.chart;
         const { ctx, chartArea } = chart;
-        if (!chartArea) return '#e11d48';
-        const gradients = COLORS.map((color) => {
+        if (!chartArea) return '#6366f1';
+        
+        const catKeysList = Object.keys(categorySales);
+        const gradients = catKeysList.map((c) => {
+          const color = CATEGORY_COLORS[c] || '#6366f1';
           const g = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
           g.addColorStop(0, color);
-          g.addColorStop(1, 'rgba(255, 255, 255, 0.2)');
+          g.addColorStop(1, 'rgba(0, 0, 0, 0.4)');
           return g;
         });
         return gradients[context.dataIndex % gradients.length];
@@ -710,7 +726,7 @@ function App() {
     labels: ['Company', 'Individual'],
     datasets: [{
       data: [customerRatio.Company, customerRatio.Individual],
-      backgroundColor: ['#e11d48', '#fb7185'],
+      backgroundColor: [CUSTOMER_COLORS.Company, CUSTOMER_COLORS.Individual],
       borderWidth: 0,
       hoverOffset: 10
     }]
@@ -723,11 +739,11 @@ function App() {
       backgroundColor: (context) => {
         const chart = context.chart;
         const { ctx, chartArea } = chart;
-        if (!chartArea) return '#e11d48';
+        if (!chartArea) return '#6366f1';
         const g1 = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom); 
-        g1.addColorStop(0, '#e11d48'); g1.addColorStop(1, '#9f1239');
+        g1.addColorStop(0, '#6366f1'); g1.addColorStop(1, '#312e81');
         const g2 = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom); 
-        g2.addColorStop(0, '#fb7185'); g2.addColorStop(1, '#f43f5e');
+        g2.addColorStop(0, '#ec4899'); g2.addColorStop(1, '#9d174d');
         return [g1, g2][context.dataIndex];
       },
       borderRadius: 8,
@@ -743,17 +759,27 @@ function App() {
       backgroundColor: (context) => {
         const chart = context.chart;
         const { ctx, chartArea } = chart;
-        if (!chartArea) return '#e11d48';
-        return COLORS.map(c => {
+        if (!chartArea) return '#6366f1';
+        
+        const regKeysList = Object.keys(regionSales);
+        return regKeysList.map(r => {
+          const c = REGION_COLORS[r] || '#6366f1';
           const g = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-          g.addColorStop(0, c); g.addColorStop(1, 'rgba(255,255,255,0.15)');
+          g.addColorStop(0, c); g.addColorStop(1, 'rgba(0,0,0,0.4)');
           return g;
-        })[context.dataIndex % COLORS.length];
+        })[context.dataIndex % regKeysList.length];
       },
       borderRadius: 8,
       borderSkipped: false,
       barPercentage: 0.55
     }]
+  };
+
+  const getProductColor = (productName) => {
+    if (productName.includes('มะลิ') || productName.includes('กุหลาบ') || productName.includes('เก็กฮวย') || productName.includes('อัญชัน')) return CATEGORY_COLORS['ดอกไม้ไทย'];
+    if (productName.includes('มะนาว') || productName.includes('ส้ม') || productName.includes('แตงโม') || productName.includes('แอปเปิ้ล') || productName.includes('ผลไม้') || productName.includes('พีช')) return CATEGORY_COLORS['ผลไม้สดชื่น'];
+    if (productName.includes('ขิง') || productName.includes('ใบเตย') || productName.includes('สมุนไพร') || productName.includes('ขมิ้น')) return CATEGORY_COLORS['สมุนไพร'];
+    return CATEGORY_COLORS['Premium'];
   };
 
   const topProductBarData = {
@@ -763,11 +789,11 @@ function App() {
       backgroundColor: (context) => {
         const chart = context.chart;
         const { ctx, chartArea } = chart;
-        if (!chartArea) return '#e11d48';
-        return topProducts.map((p, i) => {
-          const baseColor = i === 0 ? '#9f1239' : COLORS[i % COLORS.length];
+        if (!chartArea) return '#6366f1';
+        return topProducts.map((p) => {
+          const baseColor = getProductColor(p.n);
           const g = ctx.createLinearGradient(0, 0, chartArea.right, 0);
-          g.addColorStop(0, baseColor); g.addColorStop(1, 'rgba(255,255,255,0.05)');
+          g.addColorStop(0, baseColor); g.addColorStop(1, 'rgba(0,0,0,0.4)');
           return g;
         })[context.dataIndex];
       },
@@ -795,24 +821,24 @@ function App() {
 
   const getHeatmapColorStyles = (val) => {
     const t = (val - minV) / (maxV - minV);
-    // Red gradients: Light rose pink -> Coral -> Crimson red -> Deep Burgundy
-    const colors = [[255, 241, 242], [254, 205, 211], [225, 29, 72], [159, 18, 57]];
+    // Cosmic gradient: Deep space blue -> Deep Indigo -> Electric Indigo -> Luminous Cyan
+    const colors = [[17, 24, 39], [49, 46, 129], [79, 70, 229], [6, 182, 212]];
     const idx = Math.min(Math.floor(t * (colors.length - 1)), colors.length - 2);
     const frac = t * (colors.length - 1) - idx;
     const [r1, g1, b1] = colors[idx];
     const [r2, g2, b2] = colors[idx + 1];
     
     const bgColor = `rgb(${Math.round(r1 + (r2 - r1) * frac)},${Math.round(g1 + (g2 - g1) * frac)},${Math.round(b1 + (b2 - b1) * frac)})`;
-    const textColor = t > 0.45 ? '#ffffff' : '#0f172a';
+    const textColor = '#ffffff';
     return { backgroundColor: bgColor, color: textColor };
   };
 
   const regionStackBarData = {
     labels: hmRegions.map(r => r.replace('ภาค', '')),
-    datasets: hmCats.map((c, i) => ({
+    datasets: hmCats.map((c) => ({
       label: c,
       data: hmRegions.map(r => (heatmap[r] && heatmap[r][c]) || 0),
-      backgroundColor: COLORS[i % COLORS.length],
+      backgroundColor: CATEGORY_COLORS[c] || '#6366f1',
       borderRadius: 0,
       stack: 's'
     }))
@@ -1000,7 +1026,7 @@ function App() {
                       <div className="detail-grid-item">
                         <div className="detail-grid-title">🧴 Best Selling Products</div>
                         {currentRegDetail.topProducts.map((p, idx) => (
-                          <div className="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom" style={{ borderColor: '#e2e8f0', fontSize: '12.5px' }} key={p.name}>
+                          <div className="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom" style={{ borderColor: 'var(--border)', fontSize: '12.5px' }} key={p.name}>
                             <span className="text-secondary text-truncate" style={{ maxWidth: '170px' }}>{idx+1}. {p.name.replace('น้ำเปล่าลอย', '')}</span>
                             <span className="font-semibold text-danger" style={{ color: 'var(--accent)' }}>{fmtFull(p.sales)}</span>
                           </div>
@@ -1010,10 +1036,10 @@ function App() {
                   </div>
                 </div>
 
-                <div className="mt-4 p-3 rounded" style={{ background: 'rgba(225, 29, 72, 0.025)', border: '1px dashed rgba(225, 29, 72, 0.2)' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--accent2)' }} className="mb-2">📋 คำแนะนำการจัดการ & พัฒนาผลิตภัณฑ์ใน {selectedRegion}</div>
-                  <div className="small text-secondary mb-1">• <b>เพิ่มกำลังผลิต:</b> <span className="text-dark font-medium">{currentRegDetail.productionRecommendation}</span></div>
-                  <div className="small text-secondary">• <b>โอกาสสินค้าใหม่:</b> <span className="text-dark font-medium">{currentRegDetail.newProductOpportunity}</span></div>
+                <div className="mt-4 p-3 rounded" style={{ background: 'var(--accent-light)', border: '1px dashed var(--accent)' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--accent-hover)' }} className="mb-2">📋 คำแนะนำการจัดการ & พัฒนาผลิตภัณฑ์ใน {selectedRegion}</div>
+                  <div className="small text-secondary mb-1">• <b>เพิ่มกำลังผลิต:</b> <span className="text-light font-medium">{currentRegDetail.productionRecommendation}</span></div>
+                  <div className="small text-secondary">• <b>โอกาสสินค้าใหม่:</b> <span className="text-light font-medium">{currentRegDetail.newProductOpportunity}</span></div>
                 </div>
               </div>
             </div>
@@ -1327,12 +1353,12 @@ function App() {
                         indexAxis: 'y',
                         scales: {
                           x: { 
-                            grid: { color: 'rgba(226, 232, 240, 0.8)', drawBorder: false },
-                            ticks: { color: '#64748b', font: { size: 11 }, callback: v => '฿' + (v / 1000) + 'K' }
+                            grid: { color: 'rgba(255, 255, 255, 0.08)', drawBorder: false },
+                            ticks: { color: '#94a3b8', font: { size: 11 }, callback: v => '฿' + (v / 1000) + 'K' }
                           },
                           y: { 
                             grid: { display: false }, 
-                            ticks: { color: 'var(--text)', font: { size: 12 } } 
+                            ticks: { color: 'var(--text-secondary)', font: { size: 12 } } 
                           }
                         }
                       }} 
@@ -1353,7 +1379,7 @@ function App() {
                         labels: catKeys,
                         datasets: [{
                           data: catVals,
-                          backgroundColor: COLORS,
+                          backgroundColor: catKeys.map(c => CATEGORY_COLORS[c] || '#6366f1'),
                           borderWidth: 0,
                           hoverOffset: 10
                         }]
@@ -1363,7 +1389,7 @@ function App() {
                   <div className="donut-legend">
                     {catKeys.map((k, i) => (
                       <div className="legend-row" key={k}>
-                        <div className="legend-dot" style={{ backgroundColor: COLORS[i % COLORS.length] }}></div>
+                        <div className="legend-dot" style={{ backgroundColor: CATEGORY_COLORS[k] || '#6366f1' }}></div>
                         <div className="legend-label">{k}</div>
                         <div className="legend-val">{(categorySales[k] / totalCat * 100).toFixed(1)}%</div>
                       </div>
@@ -1383,11 +1409,11 @@ function App() {
                   <div className="p-3">
                     {topProducts.map((p, i) => {
                       const isHero = i === 0;
-                      const barColor = isHero ? 'var(--accent)' : COLORS[i % COLORS.length];
+                      const barColor = isHero ? 'var(--accent)' : getProductColor(p.n);
                       const maxP = topProducts[0].v;
                       return (
                         <div className="progress-row" key={p.n}>
-                          <div className="progress-label" style={{ color: isHero ? 'var(--accent)' : 'var(--text-primary)', fontWeight: isHero ? 700 : 400 }}>
+                          <div className="progress-label" style={{ color: isHero ? 'var(--accent-hover)' : 'var(--text-primary)', fontWeight: isHero ? 700 : 400 }}>
                             {isHero ? '⭐ ' : ''} {p.n.replace('น้ำเปล่าลอย', '')}
                           </div>
                           <div className="progress-bar-wrap">
@@ -1395,8 +1421,8 @@ function App() {
                               className="progress-bar-custom" 
                               style={{ 
                                 width: `${(p.v / maxP * 100).toFixed(0)}%`,
-                                background: `linear-gradient(90deg, ${barColor}, #fff)`,
-                                boxShadow: isHero ? '0 2px 6px rgba(225,29,72,0.15)' : `0 1px 3px rgba(0,0,0,0.01)`
+                                background: `linear-gradient(90deg, ${barColor}, rgba(255,255,255,0.05))`,
+                                boxShadow: isHero ? '0 2px 6px rgba(99,102,241,0.25)' : `0 1px 3px rgba(0,0,0,0.01)`
                               }}
                             ></div>
                           </div>
@@ -1409,11 +1435,11 @@ function App() {
               </div>
             </div>
 
-            <div className="insight-box" style={{ borderColor: 'rgba(225,29,72,0.2)', background: 'linear-gradient(145deg, rgba(225,29,72,0.01), rgba(225,29,72,0.03))' }}>
-              <h4 style={{ color: 'var(--accent2)' }}>⭐ Hero Product Insight</h4>
-              <div className="insight-item">• <span style={{ background: 'rgba(225,29,72,0.05)', color: 'var(--accent2)', borderColor: 'rgba(225,29,72,0.15)' }}>น้ำเปล่าลอยมะลิ</span> คือสินค้าหลัก มียอดขายสูงสุดถึง ฿788,481 คิดเป็น <span style={{ background: 'rgba(225,29,72,0.05)', color: 'var(--accent2)', borderColor: 'rgba(225,29,72,0.15)' }}>27.8%</span> ของบริษัท</div>
-              <div className="insight-item">• สินค้าขายดีอันดับ 2 (ลอยมะนาว-สะระแหน่) มียอดขาย ฿393,552 แสดงให้เห็นว่า Hero Product มียอดขายสูงกว่าถึง <span style={{ background: 'rgba(225,29,72,0.05)', color: 'var(--accent2)', borderColor: 'rgba(225,29,72,0.15)' }}>2 เท่า (2x)</span></div>
-              <div className="insight-item">• ยอดขายกลุ่มดอกไม้ไทยรวมคิดเป็น <span>41.2%</span> ถือเป็นเสาหลักที่ช่วยขับเคลื่อนรายได้ทั้งหมดของโรงงานลอยมะลิลา</div>
+            <div className="insight-box" style={{ borderColor: 'var(--accent)', background: 'var(--accent-light)' }}>
+              <h4 style={{ color: 'var(--accent-hover)' }}>⭐ Hero Product Insight</h4>
+              <div className="insight-item">• <span style={{ background: 'var(--surface2)', color: 'var(--text-primary)', borderColor: 'var(--border)' }}>น้ำเปล่าลอยมะลิ</span> คือสินค้าหลัก มียอดขายสูงสุดถึง ฿788,481 คิดเป็น <span style={{ background: 'var(--surface2)', color: 'var(--text-primary)', borderColor: 'var(--border)' }}>27.8%</span> ของบริษัท</div>
+              <div className="insight-item">• สินค้าขายดีอันดับ 2 (ลอยมะนาว-สะระแหน่) มียอดขาย ฿393,552 แสดงให้เห็นว่า Hero Product มียอดขายสูงกว่าถึง <span style={{ background: 'var(--surface2)', color: 'var(--text-primary)', borderColor: 'var(--border)' }}>2 เท่า (2x)</span></div>
+              <div className="insight-item">• ยอดขายกลุ่มดอกไม้ไทยรวมคิดเป็น <span style={{ background: 'var(--surface2)', color: 'var(--text-primary)', borderColor: 'var(--border)' }}>41.2%</span> ถือเป็นเสาหลักที่ช่วยขับเคลื่อนรายได้ทั้งหมดของโรงงานลอยมะลิลา</div>
             </div>
           </div>
         )}
@@ -1530,11 +1556,11 @@ function App() {
                       options={{
                         ...chartDefaults,
                         scales: {
-                          x: { stacked: true, grid: { display: false }, ticks: { color: '#64748b', font: { size: 11 } } },
+                          x: { stacked: true, grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 11 } } },
                           y: { 
                             stacked: true, 
-                            grid: { color: 'rgba(226, 232, 240, 0.8)', drawBorder: false }, 
-                            ticks: { color: '#64748b', font: { size: 11 }, callback: v => '฿' + (v / 1000) + 'K' } 
+                            grid: { color: 'rgba(255, 255, 255, 0.08)', drawBorder: false }, 
+                            ticks: { color: '#94a3b8', font: { size: 11 }, callback: v => '฿' + (v / 1000) + 'K' } 
                           }
                         },
                         plugins: {
@@ -1542,7 +1568,7 @@ function App() {
                           legend: {
                             display: true,
                             position: 'bottom',
-                            labels: { color: '#64748b', font: { size: 12, family: "'Prompt', sans-serif" }, boxWidth: 14, padding: 15 }
+                            labels: { color: '#94a3b8', font: { size: 12, family: "'Prompt', sans-serif" }, boxWidth: 14, padding: 15 }
                           }
                         }
                       }} 
@@ -1666,7 +1692,7 @@ function App() {
                       <div className="d-flex align-items-start gap-3 mb-3">
                         <div className="fs-3">🔄</div>
                         <div>
-                          <h6 className="mb-1 font-bold text-dark">ระบบซิงค์ข้อมูลอัตโนมัติ (n8n Schedule)</h6>
+                          <h6 className="mb-1 font-bold text-light">ระบบซิงค์ข้อมูลอัตโนมัติ (n8n Schedule)</h6>
                           <p className="small text-muted mb-0">
                             Workflow ใน n8n จะทำงานอัตโนมัติในเวลา <b>05:00 น. ของทุกวัน</b> เพื่อกวาดข้อมูลจากตาราง <code>pumpui_erp</code> มาประมวลผล, กรองค่าติดลบ/ค่าว่าง และนำมาจัดเก็บที่ตารางแสดงผล <code>pumpui_show</code>
                           </p>
@@ -1676,7 +1702,7 @@ function App() {
                       <div className="d-flex align-items-start gap-3 mb-3">
                         <div className="fs-3">📊</div>
                         <div>
-                          <h6 className="mb-1 font-bold text-dark">การคำนวณการเปลี่ยนแปลง (Change Data Detection)</h6>
+                          <h6 className="mb-1 font-bold text-light">การคำนวณการเปลี่ยนแปลง (Change Data Detection)</h6>
                           <p className="small text-muted mb-0">
                             <b>ข้อมูลใหม่ (New):</b> นับจากรหัสรายการสั่งซื้อ (OrderID) ที่มีเพิ่มขึ้นในระบบ ERP แต่ยังไม่มีบนแดชบอร์ด<br />
                             <b>ข้อมูลแก้ไข (Modified):</b> ตรวจสอบจาก OrderID เดียวกันที่มีการแก้ไขค่าเงิน (NetAmount), จำนวน (Quantity) หรือราคาสินค้า (Price)
@@ -1686,8 +1712,8 @@ function App() {
                     </div>
                   </div>
                   
-                  <div className="p-3 rounded" style={{ background: 'rgba(225, 29, 72, 0.025)', border: '1px dashed rgba(225, 29, 72, 0.2)' }}>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--accent2)' }} className="mb-2">🧪 วิธีทดสอบการซิงค์ข้อมูล (Manual Testing)</div>
+                  <div className="p-3 rounded" style={{ background: 'var(--accent-light)', border: '1px dashed var(--accent)' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--accent-hover)' }} className="mb-2">🧪 วิธีทดสอบการซิงค์ข้อมูล (Manual Testing)</div>
                     <ol className="small text-secondary ps-3 mb-0" style={{ lineHeight: '1.6' }}>
                       <li>เปิดโปรแกรม <b>n8n</b> และไปที่ Workflow <code>Pumpui Dashboard</code></li>
                       <li>คลิกเลือก Node <b>MSSQL Sync Execution</b></li>
@@ -1731,15 +1757,15 @@ function App() {
                   <div className="row g-4">
                     {/* New Records Table */}
                     <div className="col-12 col-xxl-6">
-                      <div className="p-3 border rounded-3 bg-light-subtle h-100">
+                      <div className="p-3 border rounded-3 h-100" style={{ backgroundColor: 'var(--surface2)', borderColor: 'var(--border)' }}>
                         <h5 className="fs-6 font-bold text-success mb-3 d-flex align-items-center gap-2">
                           <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }}></span>
                           ➕ รายการข้อมูลมาใหม่ ({syncDiff.newRecords?.length || 0} รายการ)
                         </h5>
                         <div className="table-responsive" style={{ maxHeight: '350px', overflowY: 'auto' }}>
-                          <table className="table table-hover table-sm align-middle" style={{ fontSize: '12.5px' }}>
-                            <thead className="table-light">
-                              <tr>
+                          <table className="table table-hover table-sm align-middle" style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+                            <thead>
+                              <tr style={{ color: 'var(--text-primary)' }}>
                                 <th>OrderID</th>
                                 <th>ชื่อลูกค้า</th>
                                 <th>ชื่อสินค้า</th>
@@ -1755,7 +1781,7 @@ function App() {
                               ) : (
                                 syncDiff.newRecords.map((r, idx) => (
                                   <tr key={r.OrderID || idx}>
-                                    <td className="font-semibold text-dark">{r.OrderID}</td>
+                                    <td className="font-semibold text-light">{r.OrderID}</td>
                                     <td className="text-truncate" style={{ maxWidth: '120px' }}>{r.CustomerName?.replace('บริษัท ', '').replace(' จำกัด', '')}</td>
                                     <td className="text-truncate" style={{ maxWidth: '140px' }}>{r.ProductName?.replace('น้ำเปล่าลอย', '')}</td>
                                     <td className="text-end font-semibold">{r.Quantity}</td>
@@ -1771,15 +1797,15 @@ function App() {
 
                     {/* Modified Records Table */}
                     <div className="col-12 col-xxl-6">
-                      <div className="p-3 border rounded-3 bg-light-subtle h-100">
-                        <h5 className="fs-6 font-bold text-warning mb-3 d-flex align-items-center gap-2" style={{ color: '#d97706' }}>
+                      <div className="p-3 border rounded-3 h-100" style={{ backgroundColor: 'var(--surface2)', borderColor: 'var(--border)' }}>
+                        <h5 className="fs-6 font-bold text-warning mb-3 d-flex align-items-center gap-2" style={{ color: '#f59e0b' }}>
                           <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b' }}></span>
                           ✏️ รายการข้อมูลที่มีการแก้ไข ({syncDiff.modifiedRecords?.length || 0} รายการ)
                         </h5>
                         <div className="table-responsive" style={{ maxHeight: '350px', overflowY: 'auto' }}>
-                          <table className="table table-hover table-sm align-middle" style={{ fontSize: '12.5px' }}>
-                            <thead className="table-light">
-                              <tr>
+                          <table className="table table-hover table-sm align-middle" style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+                            <thead>
+                              <tr style={{ color: 'var(--text-primary)' }}>
                                 <th>OrderID</th>
                                 <th>ชื่อลูกค้า</th>
                                 <th>ชื่อสินค้า</th>
@@ -1799,7 +1825,7 @@ function App() {
 
                                   return (
                                     <tr key={r.OrderID || idx}>
-                                      <td className="font-semibold text-dark">{r.OrderID}</td>
+                                      <td className="font-semibold text-light">{r.OrderID}</td>
                                       <td className="text-truncate" style={{ maxWidth: '110px' }}>{r.CustomerName?.replace('บริษัท ', '').replace(' จำกัด', '')}</td>
                                       <td className="text-truncate" style={{ maxWidth: '110px' }}>{r.ProductName?.replace('น้ำเปล่าลอย', '')}</td>
                                       <td className="text-center">
