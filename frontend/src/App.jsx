@@ -248,11 +248,11 @@ const mockRegionalDetail = {
 };
 
 const mockSyncLogs = [
-  { SyncID: 1, SyncDate: '2026-06-25T11:57:52.167Z', NewRecords: 12, ModifiedRecords: 5, TotalRecords: 1500 },
-  { SyncID: 2, SyncDate: '2026-06-24T05:00:10.000Z', NewRecords: 8, ModifiedRecords: 3, TotalRecords: 1488 },
-  { SyncID: 3, SyncDate: '2026-06-23T05:00:15.000Z', NewRecords: 15, ModifiedRecords: 2, TotalRecords: 1480 },
-  { SyncID: 4, SyncDate: '2026-06-22T05:00:08.000Z', NewRecords: 0, ModifiedRecords: 0, TotalRecords: 1465 },
-  { SyncID: 5, SyncDate: '2026-06-21T05:00:12.000Z', NewRecords: 22, ModifiedRecords: 8, TotalRecords: 1465 }
+  { SyncID: 1, SyncDate: '2026-06-25T11:57:52.167Z', NewRecords: 12, ModifiedRecords: 5, TotalRecords: 1500, errorDetails: '300002, 100003, 300009, 100010, 100027 (และอีก 57 รายการ)' },
+  { SyncID: 2, SyncDate: '2026-06-24T05:00:10.000Z', NewRecords: 8, ModifiedRecords: 3, TotalRecords: 1488, errorDetails: '100001, 100015, 100022 (และอีก 2 รายการ)' },
+  { SyncID: 3, SyncDate: '2026-06-23T05:00:15.000Z', NewRecords: 15, ModifiedRecords: 2, TotalRecords: 1480, errorDetails: null },
+  { SyncID: 4, SyncDate: '2026-06-22T05:00:08.000Z', NewRecords: 0, ModifiedRecords: 0, TotalRecords: 1465, errorDetails: null },
+  { SyncID: 5, SyncDate: '2026-06-21T05:00:12.000Z', NewRecords: 22, ModifiedRecords: 8, TotalRecords: 1465, errorDetails: '100012, 100013, 100030 (และอีก 4 รายการ)' }
 ];
 
 const mockSyncDiff = {
@@ -1716,13 +1716,14 @@ function App() {
                           <th className="text-center">ข้อมูลใหม่ (New)</th>
                           <th className="text-center">ข้อมูลที่แก้ไข (Modified)</th>
                           <th className="text-center">แถวสะสม (Total)</th>
+                          <th>รายละเอียดข้อผิดพลาด (Error Details)</th>
                           <th className="text-center">สถานะ</th>
                         </tr>
                       </thead>
                       <tbody>
                         {syncLogs.length === 0 ? (
                           <tr>
-                            <td colSpan="5" className="text-center text-muted py-4">ไม่พบประวัติการซิงค์ข้อมูล</td>
+                            <td colSpan="6" className="text-center text-muted py-4">ไม่พบประวัติการซิงค์ข้อมูล</td>
                           </tr>
                         ) : (
                           syncLogs.map((log, i) => {
@@ -1758,6 +1759,37 @@ function App() {
                                   ) : '0'}
                                 </td>
                                 <td className="text-center font-semibold">{log.TotalRecords?.toLocaleString()}</td>
+                                <td>
+                                  {log.errorDetails ? (
+                                    <span style={{ 
+                                      fontSize: '12px', 
+                                      color: '#ef4444', 
+                                      background: 'rgba(239, 68, 68, 0.05)', 
+                                      padding: '3px 8px', 
+                                      borderRadius: '4px', 
+                                      border: '1px solid rgba(239, 68, 68, 0.15)', 
+                                      display: 'inline-block',
+                                      maxWidth: '280px',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap'
+                                    }} title={log.errorDetails}>
+                                      ⚠️ {log.errorDetails}
+                                    </span>
+                                  ) : (
+                                    <span style={{ 
+                                      fontSize: '12px', 
+                                      color: '#10b981', 
+                                      background: 'rgba(16, 185, 129, 0.05)', 
+                                      padding: '3px 8px', 
+                                      borderRadius: '4px', 
+                                      border: '1px solid rgba(16, 185, 129, 0.15)', 
+                                      display: 'inline-block' 
+                                    }}>
+                                      ✔️ ไม่มีข้อผิดพลาด
+                                    </span>
+                                  )}
+                                </td>
                                 <td className="text-center">
                                   <span className="badge-custom border-success text-success px-2 py-1" style={{ background: 'rgba(16, 185, 129, 0.05)', borderColor: '#10b981' }}>
                                     สำเร็จ

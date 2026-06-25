@@ -249,8 +249,16 @@ async function runUpdate() {
               SyncDate DATETIME DEFAULT GETDATE(),
               NewRecords INT,
               ModifiedRecords INT,
-              TotalRecords INT
+              TotalRecords INT,
+              errorDetails NVARCHAR(MAX)
           );
+      END
+      ELSE
+      BEGIN
+          IF COL_LENGTH('pumpui_sync_log', 'errorDetails') IS NULL
+          BEGIN
+              ALTER TABLE pumpui_sync_log ADD errorDetails NVARCHAR(MAX);
+          END
       END
 
       DECLARE @ModifiedDetails TABLE (
@@ -283,6 +291,8 @@ async function runUpdate() {
       DECLARE @new_count INT;
       DECLARE @mod_count INT;
       DECLARE @total_count INT;
+      DECLARE @error_count INT;
+      DECLARE @error_details_str NVARCHAR(MAX);
 
       SELECT @new_count = COUNT(*) 
       FROM pumpui_erp e
@@ -292,8 +302,40 @@ async function runUpdate() {
 
       SELECT @total_count = COUNT(*) FROM pumpui_erp;
 
-      INSERT INTO pumpui_sync_log (SyncDate, NewRecords, ModifiedRecords, TotalRecords)
-      VALUES (GETDATE(), @new_count, @mod_count, @total_count);
+      -- Calculate dynamic errorDetails string
+      DECLARE @ErrorOrderIDs TABLE (OrderID VARCHAR(50));
+      INSERT INTO @ErrorOrderIDs
+      SELECT OrderID FROM pumpui_erp
+      WHERE OrderID IS NULL OR OrderDate IS NULL OR CustomerID IS NULL OR ProductID IS NULL OR NetAmount IS NULL OR NetAmount < 0 OR Quantity IS NULL OR Quantity < 0 OR Price IS NULL OR Price < 0 OR Region IS NULL OR Region = '' OR Province IS NULL OR Province = '';
+
+      SELECT @error_count = COUNT(*) FROM @ErrorOrderIDs;
+
+      DECLARE @Top5 NVARCHAR(MAX);
+      SET @Top5 = '';
+
+      SELECT @Top5 = COALESCE(@Top5 + ', ', '') + OrderID
+      FROM (
+          SELECT TOP 5 OrderID FROM @ErrorOrderIDs ORDER BY OrderID
+      ) t;
+
+      IF LEN(@Top5) > 2
+      BEGIN
+          SET @Top5 = SUBSTRING(@Top5, 3, LEN(@Top5) - 2);
+      END
+
+      IF @error_count > 5
+      BEGIN
+          DECLARE @remaining INT;
+          SET @remaining = @error_count - 5;
+          SET @error_details_str = @Top5 + N' (และอีก ' + CAST(@remaining AS NVARCHAR(50)) + N' รายการ)';
+      END
+      ELSE
+      BEGIN
+          SET @error_details_str = @Top5;
+      END
+
+      INSERT INTO pumpui_sync_log (SyncDate, NewRecords, ModifiedRecords, TotalRecords, errorDetails)
+      VALUES (GETDATE(), @new_count, @mod_count, @total_count, @error_details_str);
 
       TRUNCATE TABLE pumpui_show;
       INSERT INTO pumpui_show 

@@ -136,7 +136,8 @@ app.get('/api/sync-log', async (req, res) => {
         SyncDate, 
         NewRecords, 
         ModifiedRecords, 
-        TotalRecords 
+        TotalRecords,
+        errorDetails
       FROM pumpui_sync_log 
       ORDER BY SyncDate DESC
     `);
