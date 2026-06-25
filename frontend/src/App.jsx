@@ -1701,8 +1701,8 @@ function App() {
             </div>
 
             <div className="row g-4 mb-4">
-              {/* Left Column: Sync History Log */}
-              <div className="col-12 col-lg-7">
+              {/* Sync History Log - Full Width */}
+              <div className="col-12">
                 <div className="dashboard-card">
                   <div className="card-header-clean">
                     <h4 className="card-title-clean">📜 ประวัติการซิงค์ข้อมูลย้อนหลัง (Latest Ingestion Executions)</h4>
@@ -1712,10 +1712,10 @@ function App() {
                     <table className="data-table">
                       <thead>
                         <tr>
-                          <th>วัน-เวลาซิงค์ (Sync Date)</th>
-                          <th className="text-center">ข้อมูลใหม่ (New)</th>
-                          <th className="text-center">ข้อมูลที่แก้ไข (Modified)</th>
-                          <th className="text-center">แถวสะสม (Total)</th>
+                          <th>วันเวลาซิงค์</th>
+                          <th className="text-center">ข้อมูลใหม่</th>
+                          <th className="text-center">ข้อมูลแก้ไข</th>
+                          <th className="text-center">จำนวนแถวสะสม</th>
                           <th>รายละเอียดข้อผิดพลาด (Error Details)</th>
                           <th className="text-center">สถานะ</th>
                         </tr>
@@ -1769,7 +1769,7 @@ function App() {
                                       borderRadius: '4px', 
                                       border: '1px solid rgba(239, 68, 68, 0.15)', 
                                       display: 'inline-block',
-                                      maxWidth: '280px',
+                                      maxWidth: '480px',
                                       overflow: 'hidden',
                                       textOverflow: 'ellipsis',
                                       whiteSpace: 'nowrap'
@@ -1804,15 +1804,17 @@ function App() {
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Right Column: Sync Control Panel & Guide */}
-              <div className="col-12 col-lg-5">
-                <div className="dashboard-card d-flex flex-column justify-content-between">
+            <div className="row g-4 mb-4">
+              {/* ETL Summary Card */}
+              <div className="col-12 col-lg-7">
+                <div className="dashboard-card h-100" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                   <div>
                     <div className="card-header-clean">
                       <h4 className="card-title-clean">⚙️ สรุประบบท่อข้อมูล (ETL & Pipeline Info)</h4>
                     </div>
-                    <div className="p-2">
+                    <div className="p-3">
                       <div className="d-flex align-items-start gap-3 mb-3">
                         <div className="fs-3">🔄</div>
                         <div>
@@ -1823,7 +1825,7 @@ function App() {
                         </div>
                       </div>
 
-                      <div className="d-flex align-items-start gap-3 mb-3">
+                      <div className="d-flex align-items-start gap-3">
                         <div className="fs-3">📊</div>
                         <div>
                           <h6 className="mb-1 font-bold text-light">การคำนวณการเปลี่ยนแปลง (Change Data Detection)</h6>
@@ -1835,15 +1837,24 @@ function App() {
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="p-3 rounded" style={{ background: 'var(--accent-light)', border: '1px dashed var(--accent)' }}>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--accent-hover)' }} className="mb-2">🧪 วิธีทดสอบการซิงค์ข้อมูล (Manual Testing)</div>
-                    <ol className="small text-secondary ps-3 mb-0" style={{ lineHeight: '1.6' }}>
-                      <li>เปิดโปรแกรม <b>n8n</b> และไปที่ Workflow <code>Pumpui Dashboard</code></li>
-                      <li>คลิกเลือก Node <b>MSSQL Sync Execution</b></li>
-                      <li>กดปุ่ม <b>Execute step</b> ด้านบนขวาเพื่อรันมือ</li>
-                      <li>เมื่อรันเสร็จ ข้อมูลรอนำเข้าที่บอร์ดนี้จะเคลียร์เป็นศูนย์ทันที และแสดงในตารางฝั่งซ้าย</li>
-                    </ol>
+                </div>
+              </div>
+
+              {/* Manual Testing Guide */}
+              <div className="col-12 col-lg-5">
+                <div className="dashboard-card h-100" style={{ background: 'var(--accent-light)', border: '1px dashed var(--accent)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div>
+                    <div className="card-header-clean">
+                      <h4 className="card-title-clean" style={{ color: 'var(--accent-hover)' }}>🧪 วิธีทดสอบการซิงค์ข้อมูล (Manual Testing)</h4>
+                    </div>
+                    <div className="p-3">
+                      <ol className="small text-secondary ps-3 mb-0" style={{ lineHeight: '1.7' }}>
+                        <li className="mb-2">เปิดโปรแกรม <b>n8n</b> และไปที่ Workflow <code>Pumpui Dashboard</code></li>
+                        <li className="mb-2">คลิกเลือก Node <b>MSSQL Sync Execution</b></li>
+                        <li className="mb-2">กดปุ่ม <b>Execute step</b> ด้านบนขวาเพื่อรันมือ</li>
+                        <li>เมื่อรันเสร็จ ข้อมูลรอนำเข้าที่บอร์ดนี้จะเคลียร์เป็นศูนย์ทันที และแสดงในตารางฝั่งซ้าย</li>
+                      </ol>
+                    </div>
                   </div>
                 </div>
               </div>
