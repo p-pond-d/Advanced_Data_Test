@@ -1,11 +1,3 @@
-Title: Live Content
-
-Description: Fetched live
-
-Source: https://raw.githubusercontent.com/VictorCazanave/svg-maps/master/packages/thailand/thailand.svg
-
----
-
 <svg
 	xmlns="http://www.w3.org/2000/svg"
 	viewBox="0 0 560 1025"
