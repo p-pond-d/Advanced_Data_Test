@@ -377,8 +377,8 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales }) {
       return baseColor; 
     }
 
-    // Choropleth shading: blend color based on sales ratio (opacity from 0.2 to 0.8)
-    const opacity = 0.2 + ratio * 0.6;
+    // Choropleth shading: blend color based on sales ratio (opacity from 0.45 to 1.0)
+    const opacity = 0.45 + ratio * 0.55;
     const r = parseInt(baseColor.substring(1, 3), 16);
     const g = parseInt(baseColor.substring(3, 5), 16);
     const b = parseInt(baseColor.substring(5, 7), 16);
@@ -457,7 +457,7 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales }) {
                   onMouseLeave={() => setHoveredRegion(null)}
                   paintOrder="stroke"
                   stroke="#ffffff"
-                  strokeWidth={isSelected ? '4' : '3'}
+                  strokeWidth={isSelected ? '5' : '4'}
                   textAnchor="middle"
                   style={{
                     transition: 'all 0.2s ease',
@@ -512,18 +512,20 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales }) {
         )}
       </div>
 
-      <div className="mt-2 small text-muted d-flex justify-content-center flex-wrap gap-2 px-2" style={{ fontSize: '11px' }}>
+      <div className="mt-2 d-flex justify-content-center flex-wrap gap-2 px-2" style={{ fontSize: '12px', fontWeight: 'bold' }}>
         {Object.entries(REGION_COLORS).map(([rName, color]) => (
           <span 
-            className="d-flex align-items-center gap-1 cursor-pointer px-1 py-0.5 rounded transition"
+            className="d-flex align-items-center gap-1 cursor-pointer px-2 py-1 rounded transition"
             key={rName}
             onClick={() => onRegionSelect(rName)}
             style={{
-              background: activeRegion === rName ? 'rgba(0,0,0,0.03)' : 'transparent',
-              fontWeight: activeRegion === rName ? '700' : '400'
+              background: activeRegion === rName ? 'rgba(225,29,72,0.08)' : 'transparent',
+              border: activeRegion === rName ? '1.5px solid var(--accent)' : '1.5px solid transparent',
+              fontWeight: activeRegion === rName ? '800' : '600',
+              color: activeRegion === rName ? 'var(--text-primary)' : 'var(--text-secondary)'
             }}
           >
-            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: color }}></span> 
+            <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', background: color, border: '1px solid rgba(0,0,0,0.15)' }}></span> 
             {rName.replace('ภาค', '')}
           </span>
         ))}
