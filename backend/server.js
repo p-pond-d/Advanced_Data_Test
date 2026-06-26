@@ -17,7 +17,7 @@ try {
   let inspectOutput = "================ EXCEL SCHEMA INSPECTION ================\n";
   const workbook = XLSX.readFile(EXCEL_PATH);
   inspectOutput += `Sheet Names: ${JSON.stringify(workbook.SheetNames)}\n\n`;
-  
+
   workbook.SheetNames.forEach(sheetName => {
     const sheet = workbook.Sheets[sheetName];
     const data = XLSX.utils.sheet_to_json(sheet);
@@ -28,7 +28,7 @@ try {
     }
   });
   inspectOutput += "========================================================\n";
-  
+
   fs.writeFileSync(METADATA_PATH, inspectOutput, 'utf8');
   console.log("Excel schema metadata written to excel_metadata.txt");
 } catch (err) {
@@ -85,7 +85,7 @@ app.get('/api/kpis', async (req, res) => {
     `);
 
     const data = result.recordset[0];
-    
+
     // Calculate actual data quality score dynamically by comparing clean (pumpui_show) vs raw (pumpui_erp) record counts
     let dataQualityScore = 99.2; // default fallback
     try {
@@ -98,7 +98,7 @@ app.get('/api/kpis', async (req, res) => {
     } catch (e) {
       console.warn("Failed to calculate dynamic data quality score:", e.message);
     }
-    
+
     // Supplement with target success metrics
     res.json({
       revenue: data.totalRevenue || 2840000,
@@ -125,7 +125,7 @@ app.get('/api/sync-log', async (req, res) => {
     const checkTable = await pool.request().query(`
       SELECT OBJECT_ID('pumpui_sync_log', 'U') as tableId
     `);
-    
+
     if (!checkTable.recordset[0].tableId) {
       return res.json([]); // Return empty list if table not created yet
     }
@@ -151,14 +151,14 @@ app.get('/api/sync-log', async (req, res) => {
 app.get('/api/sync-diff', async (req, res) => {
   try {
     const pool = await getPool();
-    
+
     // Check if both tables exist
     const checkTables = await pool.request().query(`
       SELECT 
         OBJECT_ID('pumpui_erp', 'U') as erpTableId,
         OBJECT_ID('pumpui_show', 'U') as showTableId
     `);
-    
+
     const { erpTableId, showTableId } = checkTables.recordset[0];
     if (!erpTableId || !showTableId) {
       return res.json({ newRecords: [], modifiedRecords: [] });
@@ -255,7 +255,7 @@ app.get('/api/region-sales', async (req, res) => {
       GROUP BY Region
       ORDER BY revenue DESC
     `);
-    
+
     const formatted = {};
     result.recordset.forEach(r => {
       formatted[r.Region] = r.revenue;
@@ -295,7 +295,7 @@ app.get('/api/category-sales', async (req, res) => {
 app.get('/api/customer-segments', async (req, res) => {
   try {
     const pool = await getPool();
-    
+
     // Revenue breakdown by type
     const ratioResult = await pool.request().query(`
       SELECT 
@@ -333,7 +333,7 @@ app.get('/api/customer-segments', async (req, res) => {
 app.get('/api/top-analytics', async (req, res) => {
   try {
     const pool = await getPool();
-    
+
     // Top 10 customers (Answers Objective 4 part 2)
     const customersResult = await pool.request().query(`
       SELECT TOP 10 
@@ -416,7 +416,7 @@ app.get('/api/heatmap', async (req, res) => {
 app.get('/api/product-insights', async (req, res) => {
   try {
     const pool = await getPool();
-    
+
     // Top 10 products per Region (Answers Business Question 3)
     const regionalTopProducts = await pool.request().query(`
       WITH RankedProducts AS (
@@ -478,6 +478,89 @@ app.get('/api/product-insights', async (req, res) => {
       regionalFlavors: regionalInsights,
       productionRecommendations: productionRecommendations
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 10. Data Quality Errors
+app.get('/api/errors', async (req, res) => {
+  try {
+    const pool = await getPool();
+    const result = await pool.request().query(`
+      SELECT 
+        OrderID as orderID,
+        OrderDate as orderDate,
+        CustomerID as customerID,
+        CustomerName as customerName,
+        ProductID as productID,
+        ProductName as productName,
+        ProductCategory as productCategory,
+        Price as price,
+        Quantity as quantity,
+        NetAmount as netAmount,
+        Province as province,
+        Region as region
+      FROM pumpui_erp
+      WHERE OrderID IS NULL 
+         OR OrderDate IS NULL 
+         OR CustomerID IS NULL 
+         OR ProductID IS NULL 
+         OR NetAmount IS NULL 
+         OR NetAmount < 0 
+         OR Quantity IS NULL 
+         OR Quantity < 0 
+         OR Price IS NULL 
+         OR Price < 0 
+         OR Region IS NULL 
+         OR Region = '' 
+         OR Province IS NULL 
+         OR Province = ''
+      ORDER BY OrderID
+    `);
+
+    // Helper map of labels in Thai (to match ERROR_TYPE_LABELS in React)
+    const ERROR_TYPE_LABELS = {
+      0: { label: 'ค่าติดลบ', icon: '📉', color: '#ef4444', desc: 'Quantity และ NetAmount เป็นค่าติดลบ' },
+      1: { label: 'ยอดเงินว่าง', icon: '💸', color: '#f59e0b', desc: 'NetAmount เป็น NULL' },
+      2: { label: 'ข้อมูลภูมิภาคว่าง', icon: '🗺️', color: '#8b5cf6', desc: 'Region และ Province เป็น NULL' },
+      3: { label: 'ข้อมูลว่างเปล่า', icon: '📭', color: '#06b6d4', desc: 'Region และ Province เป็น string ว่าง' },
+      4: { label: 'ข้อมูล Dimension หาย', icon: '🔗', color: '#ec4899', desc: 'CustomerID และ ProductID เป็น NULL' }
+    };
+
+    const enriched = result.recordset.map(row => {
+      let errorType = 0;
+      // Determine error type based on the rules:
+      if (row.quantity < 0 || row.netAmount < 0) {
+        errorType = 0;
+      } else if (row.netAmount === null) {
+        errorType = 1;
+      } else if (row.region === null || row.province === null) {
+        errorType = 2;
+      } else if (row.region === '' || row.province === '') {
+        errorType = 3;
+      } else {
+        errorType = 4;
+      }
+
+      const meta = ERROR_TYPE_LABELS[errorType];
+      return {
+        orderID: row.orderID,
+        errorType: errorType,
+        errorLabel: meta.label,
+        errorIcon: meta.icon,
+        errorColor: meta.color,
+        errorDesc: meta.desc,
+        orderDate: row.orderDate,
+        quantity: row.quantity,
+        netAmount: row.netAmount,
+        product: row.productName ? row.productName.replace('น้ำเปล่าลอย', '') : 'สินค้าไม่ระบุ',
+        province: row.province || '—',
+        region: row.region || '—'
+      };
+    });
+
+    res.json(enriched);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

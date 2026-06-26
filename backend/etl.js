@@ -139,11 +139,68 @@ async function runETL() {
       CREATE TABLE pumpui_erp (${tableDefinition});
     `);
 
-    // Drop and Create pumpui_show
-    console.log("Recreating table pumpui_show...");
+    // Drop and Create pumpui_show Star Schema
+    console.log("Recreating Star Schema tables and view for pumpui_show...");
     await pool.request().query(`
+      IF OBJECT_ID('pumpui_show', 'V') IS NOT NULL DROP VIEW pumpui_show;
       IF OBJECT_ID('pumpui_show', 'U') IS NOT NULL DROP TABLE pumpui_show;
-      CREATE TABLE pumpui_show (${tableDefinition});
+      IF OBJECT_ID('pumpui_show_fact', 'U') IS NOT NULL DROP TABLE pumpui_show_fact;
+      IF OBJECT_ID('pumpui_show_dim_customer', 'U') IS NOT NULL DROP TABLE pumpui_show_dim_customer;
+      IF OBJECT_ID('pumpui_show_dim_product', 'U') IS NOT NULL DROP TABLE pumpui_show_dim_product;
+      IF OBJECT_ID('pumpui_show_dim_geography', 'U') IS NOT NULL DROP TABLE pumpui_show_dim_geography;
+
+      CREATE TABLE pumpui_show_dim_customer (
+          CustomerID VARCHAR(50) NOT NULL PRIMARY KEY,
+          CustomerName NVARCHAR(255) NOT NULL,
+          CustomerType NVARCHAR(50) NOT NULL
+      );
+
+      CREATE TABLE pumpui_show_dim_product (
+          ProductID VARCHAR(50) NOT NULL PRIMARY KEY,
+          ProductName NVARCHAR(255) NOT NULL,
+          ProductCategory NVARCHAR(100) NOT NULL
+      );
+
+      CREATE TABLE pumpui_show_dim_geography (
+          Province NVARCHAR(100) NOT NULL PRIMARY KEY,
+          Region NVARCHAR(100) NOT NULL
+      );
+
+      CREATE TABLE pumpui_show_fact (
+          OrderID VARCHAR(50) NOT NULL PRIMARY KEY,
+          OrderDate DATETIME NOT NULL,
+          CustomerID VARCHAR(50) NOT NULL,
+          ProductID VARCHAR(50) NOT NULL,
+          Province NVARCHAR(100) NOT NULL,
+          Price FLOAT NOT NULL,
+          Quantity INT NOT NULL,
+          NetAmount FLOAT NOT NULL,
+          CONSTRAINT FK_ShowFact_Customer FOREIGN KEY (CustomerID) REFERENCES pumpui_show_dim_customer(CustomerID),
+          CONSTRAINT FK_ShowFact_Product FOREIGN KEY (ProductID) REFERENCES pumpui_show_dim_product(ProductID),
+          CONSTRAINT FK_ShowFact_Geography FOREIGN KEY (Province) REFERENCES pumpui_show_dim_geography(Province)
+      );
+    `);
+
+    await pool.request().query(`
+      CREATE VIEW pumpui_show AS
+      SELECT 
+          f.OrderID,
+          f.OrderDate,
+          f.CustomerID,
+          c.CustomerName,
+          c.CustomerType,
+          f.ProductID,
+          p.ProductName,
+          p.ProductCategory,
+          f.Price,
+          f.Quantity,
+          f.NetAmount,
+          f.Province,
+          g.Region
+      FROM pumpui_show_fact f
+      LEFT JOIN pumpui_show_dim_customer c ON f.CustomerID = c.CustomerID
+      LEFT JOIN pumpui_show_dim_product p ON f.ProductID = p.ProductID
+      LEFT JOIN pumpui_show_dim_geography g ON f.Province = g.Province;
     `);
 
     // Bulk insert records into pumpui_erp
@@ -179,10 +236,27 @@ async function runETL() {
       await transaction.commit();
       console.log("ETL script loaded data into pumpui_erp successfully!");
 
-      // Copy to pumpui_show for initial setup
-      console.log("Syncing initial data to pumpui_show...");
-      await pool.request().query("INSERT INTO pumpui_show SELECT * FROM pumpui_erp;");
-      console.log("Initial sync complete. Both tables are identical.");
+      // Copy to pumpui_show (Star Schema) for initial setup
+      console.log("Syncing initial data to pumpui_show Star Schema tables...");
+      await pool.request().query(`
+        DELETE FROM pumpui_show_fact;
+        DELETE FROM pumpui_show_dim_customer;
+        DELETE FROM pumpui_show_dim_product;
+        DELETE FROM pumpui_show_dim_geography;
+
+        INSERT INTO pumpui_show_dim_geography (Province, Region)
+        SELECT DISTINCT Province, Region FROM pumpui_erp WHERE Province IS NOT NULL AND Region IS NOT NULL;
+
+        INSERT INTO pumpui_show_dim_customer (CustomerID, CustomerName, CustomerType)
+        SELECT DISTINCT CustomerID, CustomerName, CustomerType FROM pumpui_erp WHERE CustomerID IS NOT NULL;
+
+        INSERT INTO pumpui_show_dim_product (ProductID, ProductName, ProductCategory)
+        SELECT DISTINCT ProductID, ProductName, ProductCategory FROM pumpui_erp WHERE ProductID IS NOT NULL;
+
+        INSERT INTO pumpui_show_fact (OrderID, OrderDate, CustomerID, ProductID, Province, Price, Quantity, NetAmount)
+        SELECT OrderID, OrderDate, CustomerID, ProductID, Province, Price, Quantity, NetAmount FROM pumpui_erp;
+      `);
+      console.log("Initial sync complete.");
 
     } catch (err) {
       await transaction.rollback();

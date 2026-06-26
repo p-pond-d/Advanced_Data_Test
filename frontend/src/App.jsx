@@ -138,14 +138,14 @@ const chartDefaults = {
 };
 
 const lightScales = {
-  x: { 
-    grid: { display: false }, 
-    ticks: { color: '#94a3b8', font: { size: 11 } } 
+  x: {
+    grid: { display: false },
+    ticks: { color: '#94a3b8', font: { size: 11 } }
   },
-  y: { 
-    border: { dash: [4, 4], color: 'rgba(255, 255, 255, 0.08)' }, 
-    grid: { color: 'rgba(255, 255, 255, 0.08)', drawBorder: false }, 
-    ticks: { color: '#94a3b8', font: { size: 11 } } 
+  y: {
+    border: { dash: [4, 4], color: 'rgba(255, 255, 255, 0.08)' },
+    grid: { color: 'rgba(255, 255, 255, 0.08)', drawBorder: false },
+    ticks: { color: '#94a3b8', font: { size: 11 } }
   }
 };
 
@@ -368,43 +368,24 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
   const maxSales = Math.max(...Object.values(regionSales), 1);
 
   useEffect(() => {
-    fetch('/thailand_regions.json')
-      .then(res => {
-        if (!res.ok) throw new Error('Not found locally');
-        return res.json();
-      })
-      .then(data => {
-        const flatPaths = [];
-        Object.entries(data).forEach(([regionName, provs]) => {
-          provs.forEach(p => {
-            flatPaths.push({
-              ...p,
-              region: regionName
-            });
-          });
-        });
-        setPaths(flatPaths);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error("Detailed SVG load failed, using fallback:", err);
-        setLoading(false);
-      });
+    // Force simplified regional map (always empty paths) to solve truncated map issue
+    setPaths([]);
+    setLoading(false);
   }, []);
 
   const getFillColor = (regionName, isProvinceHovered) => {
     const baseColor = REGION_COLORS[regionName] || '#94a3b8';
-    
+
     // Check if any region is currently active or hovered
     const hasFocus = activeRegion || hoveredRegion;
     const isThisRegionFocused = activeRegion === regionName || hoveredRegion === regionName;
-    
+
     // Calculate choropleth sales ratio opacity (0.5 to 0.95)
     const sales = regionSales[regionName] || 0;
     const ratio = sales / maxSales;
-    
+
     let opacity = 0.5 + ratio * 0.45;
-    
+
     if (hasFocus) {
       if (isThisRegionFocused) {
         opacity = isProvinceHovered ? 1.0 : 0.95;
@@ -416,11 +397,11 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
         opacity = 1.0;
       }
     }
-    
+
     const r = parseInt(baseColor.slice(1, 3), 16);
     const g = parseInt(baseColor.slice(3, 5), 16);
     const b = parseInt(baseColor.slice(5, 7), 16);
-    
+
     return `rgba(${r}, ${g}, ${b}, ${opacity})`;
   };
 
@@ -486,7 +467,7 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
             </defs>
 
             {/* Ocean background */}
-            <rect x="-20" y="-20" width="600" height="1065" fill="url(#mapOcean)" rx="16"/>
+            <rect x="-20" y="-20" width="600" height="1065" fill="url(#mapOcean)" rx="16" />
 
             <g id="detailed-map">
               {paths.map(p => {
@@ -506,8 +487,8 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
                       isProvHovered
                         ? '#ffffff'
                         : (isSelected || isHovered)
-                        ? 'rgba(255, 255, 255, 0.5)'
-                        : 'rgba(255, 255, 255, 0.12)'
+                          ? 'rgba(255, 255, 255, 0.5)'
+                          : 'rgba(255, 255, 255, 0.12)'
                     }
                     strokeWidth={isProvHovered ? '2.0' : (isSelected || isHovered) ? '1.1' : '0.5'}
                     cursor="pointer"
@@ -578,7 +559,7 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
                 <stop offset="100%" stopColor="#060c18" />
               </radialGradient>
             </defs>
-            <rect x="-10" y="-10" width="330" height="610" fill="url(#mapOcean)" rx="10"/>
+            <rect x="-10" y="-10" width="330" height="610" fill="url(#mapOcean)" rx="10" />
 
             {fallbackRegions.map(region => {
               const isSelected = activeRegion === region.name;
@@ -594,15 +575,29 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
                       isSelected
                         ? 'rgba(255,255,255,0.95)'
                         : isHovered
-                        ? 'rgba(255,255,255,0.65)'
-                        : 'rgba(255,255,255,0.18)'
+                          ? 'rgba(255,255,255,0.65)'
+                          : 'rgba(255,255,255,0.18)'
                     }
                     strokeWidth={isSelected ? '2.2' : isHovered ? '1.8' : '0.9'}
                     strokeLinejoin="round"
                     cursor="pointer"
                     onClick={() => onRegionSelect(region.name)}
                     onMouseEnter={() => setHoveredRegion(region.name)}
-                    onMouseLeave={() => setHoveredRegion(null)}
+                    onMouseMove={(e) => {
+                      const sales = regionSales[region.name] || 0;
+                      setTooltip({
+                        show: true,
+                        x: e.clientX + 15,
+                        y: e.clientY + 15,
+                        province: '',
+                        region: region.name,
+                        provSales: sales
+                      });
+                    }}
+                    onMouseLeave={() => {
+                      setTooltip(t => ({ ...t, show: false }));
+                      setHoveredRegion(null);
+                    }}
                     style={{
                       transition: 'fill 0.28s ease, stroke 0.2s ease, stroke-width 0.2s ease'
                     }}
@@ -651,14 +646,14 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
             }}
           >
             <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>📍 {tooltip.province}</span>
-              {tooltip.provSales !== null && (
+              <span>{tooltip.province ? `📍 ${tooltip.province}` : `🗺️ ${tooltip.region}`}</span>
+              {tooltip.province && tooltip.provSales !== null && (
                 <span style={{ fontSize: '10px', background: 'var(--accent)', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontWeight: '800' }}>Top Province</span>
               )}
             </div>
-            <div style={{ color: '#94a3b8', marginBottom: '6px' }}>ภูมิภาค: {tooltip.region}</div>
+            {tooltip.province && <div style={{ color: '#94a3b8', marginBottom: '6px' }}>ภูมิภาค: {tooltip.region}</div>}
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '6px', fontSize: '12px' }}>
-              {tooltip.provSales !== null ? (
+              {tooltip.province && tooltip.provSales !== null ? (
                 <div style={{ marginBottom: '3px' }}>ยอดขายจังหวัด: <span style={{ color: 'var(--accent-hover)', fontWeight: 'bold' }}>{fmtFull(tooltip.provSales)}</span></div>
               ) : null}
               <div>ยอดขายภาค: <span style={{ color: '#fff', fontWeight: 'bold' }}>{fmtFull(regionSales[tooltip.region] || 0)}</span></div>
@@ -703,9 +698,27 @@ const VALID_TABS = ['regional', 'exec', 'customer', 'product', 'dev', 'sync'];
 // ===================== ERROR DETAIL MODAL COMPONENT =====================
 function ErrorDetailModal({ log, onClose }) {
   if (!log) return null;
-  const details = generateMockErrorDetails(log);
-  const totalCount = log.errorCount || details.length;
-  const typeSummary = details.reduce((acc, d) => {
+  const [allErrors, setAllErrors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  useEffect(() => {
+    setLoading(true);
+    axios.get('/api/errors')
+      .then(res => {
+        setAllErrors(res.data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.warn("Failed to fetch backend errors, falling back to mock details:", err.message);
+        setAllErrors(generateMockErrorDetails(log));
+        setLoading(false);
+      });
+  }, [log]);
+
+  const totalCount = log.errorCount || allErrors.length;
+  const typeSummary = allErrors.reduce((acc, d) => {
     acc[d.errorType] = (acc[d.errorType] || 0) + 1;
     return acc;
   }, {});
@@ -715,6 +728,9 @@ function ErrorDetailModal({ log, onClose }) {
       return new Date(isoStr).toLocaleString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' น.';
     } catch { return isoStr; }
   };
+
+  const totalPages = Math.ceil(allErrors.length / itemsPerPage) || 1;
+  const paginatedErrors = allErrors.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div
@@ -750,7 +766,7 @@ function ErrorDetailModal({ log, onClose }) {
               </span>
             </div>
             <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
-              รอบซิงค์: {formatDateTH(log.SyncDate)} · แสดงตัวอย่าง {details.length} รายการแรก
+              รอบซิงค์: {formatDateTH(log.SyncDate)} · แสดงทั้งหมดโดยแบ่งหน้าละ {itemsPerPage} รายการ
             </p>
           </div>
           <button onClick={onClose} style={{
@@ -777,63 +793,120 @@ function ErrorDetailModal({ log, onClose }) {
         </div>
 
         {/* Table */}
-        <div style={{ overflowY: 'auto', flex: 1, padding: '0 24px 24px' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', marginTop: '16px' }}>
-            <thead>
-              <tr style={{ color: '#64748b', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                <th style={{ padding: '8px 10px 10px', textAlign: 'left', fontWeight: 600 }}>OrderID</th>
-                <th style={{ padding: '8px 10px 10px', textAlign: 'left', fontWeight: 600 }}>ประเภทข้อผิดพลาด</th>
-                <th style={{ padding: '8px 10px 10px', textAlign: 'left', fontWeight: 600 }}>วันที่บันทึก</th>
-                <th style={{ padding: '8px 10px 10px', textAlign: 'left', fontWeight: 600 }}>สินค้า</th>
-                <th style={{ padding: '8px 10px 10px', textAlign: 'right', fontWeight: 600 }}>Quantity</th>
-                <th style={{ padding: '8px 10px 10px', textAlign: 'right', fontWeight: 600 }}>NetAmount</th>
-                <th style={{ padding: '8px 10px 10px', textAlign: 'left', fontWeight: 600 }}>สาเหตุ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {details.map((d, idx) => (
-                <tr key={d.orderID} style={{
-                  borderBottom: '1px solid rgba(255,255,255,0.04)',
-                  background: idx % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent',
-                  transition: 'background 0.15s'
-                }}>
-                  <td style={{ padding: '9px 10px', color: '#e2e8f0', fontWeight: 600, fontFamily: 'monospace' }}>
-                    {d.orderID}
-                  </td>
-                  <td style={{ padding: '9px 10px' }}>
-                    <span style={{
-                      background: d.errorColor + '18', border: `1px solid ${d.errorColor}40`,
-                      color: d.errorColor, borderRadius: '5px', padding: '2px 7px',
-                      fontSize: '11.5px', fontWeight: 600, whiteSpace: 'nowrap'
-                    }}>
-                      {d.errorIcon} {d.errorLabel}
-                    </span>
-                  </td>
-                  <td style={{ padding: '9px 10px', color: '#94a3b8', fontSize: '12px', whiteSpace: 'nowrap' }}>
-                    {formatDateTH(d.orderDate)}
-                  </td>
-                  <td style={{ padding: '9px 10px', color: '#cbd5e1', fontSize: '12px' }}>
-                    น้ำเปล่าลอย{d.product}
-                  </td>
-                  <td style={{ padding: '9px 10px', textAlign: 'right', fontWeight: 600,
-                    color: d.quantity < 0 ? '#ef4444' : '#94a3b8' }}>
-                    {d.quantity !== null ? d.quantity : <span style={{ color: '#6b7280' }}>NULL</span>}
-                  </td>
-                  <td style={{ padding: '9px 10px', textAlign: 'right', fontWeight: 600,
-                    color: d.netAmount === null ? '#6b7280' : d.netAmount < 0 ? '#ef4444' : '#94a3b8' }}>
-                    {d.netAmount !== null ? '฿' + d.netAmount.toLocaleString() : <span style={{ color: '#6b7280' }}>NULL</span>}
-                  </td>
-                  <td style={{ padding: '9px 10px', color: '#64748b', fontSize: '11.5px' }}>
-                    {d.errorDesc}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {totalCount > details.length && (
-            <div style={{ marginTop: '12px', padding: '10px 12px', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.12)', borderRadius: '8px', fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>
-              ⚠️ แสดงเพียง {details.length} รายการตัวอย่าง · ยังมีอีก <b style={{ color: '#ef4444' }}>{totalCount - details.length} รายการ</b> ที่ยังไม่แสดง (ดูครบใน Database)
+        <div style={{ overflowY: 'auto', flex: 1, padding: '0 24px 24px', display: 'flex', flexDirection: 'column' }}>
+          {loading ? (
+            <div style={{ padding: '40px', color: 'var(--accent)', textAlign: 'center', fontWeight: 'bold', fontSize: '15px' }}>
+              กำลังดึงข้อมูลข้อผิดพลาดทั้งหมดจาก Database...
             </div>
+          ) : (
+            <>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', marginTop: '16px' }}>
+                <thead>
+                  <tr style={{ color: '#64748b', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                    <th style={{ padding: '8px 10px 10px', textAlign: 'left', fontWeight: 600 }}>OrderID</th>
+                    <th style={{ padding: '8px 10px 10px', textAlign: 'left', fontWeight: 600 }}>ประเภทข้อผิดพลาด</th>
+                    <th style={{ padding: '8px 10px 10px', textAlign: 'left', fontWeight: 600 }}>วันที่บันทึก</th>
+                    <th style={{ padding: '8px 10px 10px', textAlign: 'left', fontWeight: 600 }}>สินค้า</th>
+                    <th style={{ padding: '8px 10px 10px', textAlign: 'right', fontWeight: 600 }}>Quantity</th>
+                    <th style={{ padding: '8px 10px 10px', textAlign: 'right', fontWeight: 600 }}>NetAmount</th>
+                    <th style={{ padding: '8px 10px 10px', textAlign: 'left', fontWeight: 600 }}>สาเหตุ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedErrors.map((d, idx) => (
+                    <tr key={d.orderID} style={{
+                      borderBottom: '1px solid rgba(255,255,255,0.04)',
+                      background: idx % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent',
+                      transition: 'background 0.15s'
+                    }}>
+                      <td style={{ padding: '9px 10px', color: '#e2e8f0', fontWeight: 600, fontFamily: 'monospace' }}>
+                        {d.orderID}
+                      </td>
+                      <td style={{ padding: '9px 10px' }}>
+                        <span style={{
+                          background: d.errorColor + '18', border: `1px solid ${d.errorColor}40`,
+                          color: d.errorColor, borderRadius: '5px', padding: '2px 7px',
+                          fontSize: '11.5px', fontWeight: 600, whiteSpace: 'nowrap'
+                        }}>
+                          {d.errorIcon} {d.errorLabel}
+                        </span>
+                      </td>
+                      <td style={{ padding: '9px 10px', color: '#94a3b8', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                        {formatDateTH(d.orderDate)}
+                      </td>
+                      <td style={{ padding: '9px 10px', color: '#cbd5e1', fontSize: '12px' }}>
+                        น้ำเปล่าลอย{d.product}
+                      </td>
+                      <td style={{
+                        padding: '9px 10px', textAlign: 'right', fontWeight: 600,
+                        color: d.quantity < 0 ? '#ef4444' : '#94a3b8'
+                      }}>
+                        {d.quantity !== null ? d.quantity : <span style={{ color: '#6b7280' }}>NULL</span>}
+                      </td>
+                      <td style={{
+                        padding: '9px 10px', textAlign: 'right', fontWeight: 600,
+                        color: d.netAmount === null ? '#6b7280' : d.netAmount < 0 ? '#ef4444' : '#94a3b8'
+                      }}>
+                        {d.netAmount !== null ? '฿' + d.netAmount.toLocaleString() : <span style={{ color: '#6b7280' }}>NULL</span>}
+                      </td>
+                      <td style={{ padding: '9px 10px', color: '#64748b', fontSize: '11.5px' }}>
+                        {d.errorDesc}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.06)',
+                  fontSize: '12.5px', color: '#94a3b8'
+                }}>
+                  <div>
+                    แสดง {Math.min((currentPage - 1) * itemsPerPage + 1, allErrors.length)} - {Math.min(currentPage * itemsPerPage, allErrors.length)} จาก {allErrors.length} รายการ
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '6px',
+                        color: currentPage === 1 ? '#475569' : '#e2e8f0',
+                        cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                        padding: '5px 12px',
+                        fontWeight: 600,
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      ◀ ย้อนกลับ
+                    </button>
+                    <span style={{ fontWeight: 700, color: '#f1f5f9', padding: '0 8px' }}>
+                      หน้า {currentPage} / {totalPages}
+                    </span>
+                    <button
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '6px',
+                        color: currentPage === totalPages ? '#475569' : '#e2e8f0',
+                        cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                        padding: '5px 12px',
+                        fontWeight: 600,
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      ถัดไป ▶
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -850,7 +923,7 @@ function App() {
   const [activeTab, setActiveTab] = useState(getTabFromHash);
   const [isLive, setIsLive] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState('ภาคกลาง'); // Default selected region for deep-dive
-  
+
   // Data States
   const [kpis, setKpis] = useState(mockKpis);
   const [monthlyTrends, setMonthlyTrends] = useState(mockMonthly);
@@ -869,7 +942,7 @@ function App() {
     { region: 'ภาคตะวันออก', product: 'น้ำเปล่าลอยแอปเปิ้ล-อบเชย', insight: 'กำลังซื้อกลุ่มเมืองหลวง/EEC สูง' },
     { region: 'ภาคตะวันตก', product: 'น้ำเปล่าลอยดอกเก็กฮวย', insight: 'ความต้องการน้ำชาสมุนไพรแบบดั้งเดิม' }
   ]);
-  
+
   const [regionalDetails, setRegionalDetails] = useState(mockRegionalDetail);
   const [syncLogs, setSyncLogs] = useState(mockSyncLogs);
   const [syncDiff, setSyncDiff] = useState(mockSyncDiff);
@@ -923,7 +996,7 @@ function App() {
 
         const devRes = await axios.get('/api/product-insights');
         setProductionRecommendations(devRes.data.productionRecommendations);
-        
+
         // Fetch Sync Log & Differences
         try {
           const logRes = await axios.get('/api/sync-log');
@@ -944,18 +1017,18 @@ function App() {
         // Dynamically compute regional detail ratios & top elements from incoming data
         if (devRes.data.regionalFlavors && custRes.data.regionalBreakdown) {
           const updatedDetails = { ...mockRegionalDetail };
-          
+
           Object.keys(updatedDetails).forEach(reg => {
             const regCustInfo = custRes.data.regionalBreakdown.filter(c => c.Region === reg);
             const comp = regCustInfo.find(c => c.CustomerType === 'Company') || { revenue: 0, customerCount: 0 };
             const ind = regCustInfo.find(c => c.CustomerType === 'Individual') || { revenue: 0, customerCount: 0 };
             const sumRevenue = comp.revenue + ind.revenue;
-            
+
             if (sumRevenue > 0) {
               updatedDetails[reg].companyRatio = parseFloat((comp.revenue / sumRevenue * 100).toFixed(1));
               updatedDetails[reg].individualRatio = parseFloat((ind.revenue / sumRevenue * 100).toFixed(1));
             }
-            
+
             // Get popular flavor and products
             const regFlavs = devRes.data.regionalFlavors[reg] || [];
             if (regFlavs.length > 0) {
@@ -1020,7 +1093,7 @@ function App() {
         const chart = context.chart;
         const { ctx, chartArea } = chart;
         if (!chartArea) return '#6366f1';
-        
+
         const catKeysList = Object.keys(categorySales);
         const gradients = catKeysList.map((c) => {
           const color = CATEGORY_COLORS[c] || '#6366f1';
@@ -1055,9 +1128,9 @@ function App() {
         const chart = context.chart;
         const { ctx, chartArea } = chart;
         if (!chartArea) return '#6366f1';
-        const g1 = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom); 
+        const g1 = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
         g1.addColorStop(0, '#6366f1'); g1.addColorStop(1, '#312e81');
-        const g2 = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom); 
+        const g2 = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
         g2.addColorStop(0, '#ec4899'); g2.addColorStop(1, '#9d174d');
         return [g1, g2][context.dataIndex];
       },
@@ -1075,7 +1148,7 @@ function App() {
         const chart = context.chart;
         const { ctx, chartArea } = chart;
         if (!chartArea) return '#6366f1';
-        
+
         const regKeysList = Object.keys(regionSales);
         return regKeysList.map(r => {
           const c = REGION_COLORS[r] || '#6366f1';
@@ -1128,7 +1201,7 @@ function App() {
   // Heatmap rendering variables
   const hmRegions = ['ภาคกลาง', 'ภาคตะวันออกเฉียงเหนือ', 'ภาคใต้', 'ภาคตะวันออก', 'ภาคตะวันตก', 'ภาคเหนือ'];
   const hmCats = ['ดอกไม้ไทย', 'ผลไม้สดชื่น', 'สมุนไพร', 'Premium'];
-  
+
   // Calculate min/max values dynamically
   const allVals = hmRegions.flatMap(r => hmCats.map(c => (heatmap[r] && heatmap[r][c]) || 0));
   const minV = Math.min(...allVals) || 0;
@@ -1142,7 +1215,7 @@ function App() {
     const frac = t * (colors.length - 1) - idx;
     const [r1, g1, b1] = colors[idx];
     const [r2, g2, b2] = colors[idx + 1];
-    
+
     const bgColor = `rgb(${Math.round(r1 + (r2 - r1) * frac)},${Math.round(g1 + (g2 - g1) * frac)},${Math.round(b1 + (b2 - b1) * frac)})`;
     const textColor = '#ffffff';
     return { backgroundColor: bgColor, color: textColor };
@@ -1193,68 +1266,68 @@ function App() {
               <span className="brand-sub">ลอยมะลิลา — Sales Data Mart 2025</span>
             </div>
           </div>
-          
+
           <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span className="navbar-toggler-icon"></span>
           </button>
-          
+
           <div className="collapse navbar-collapse" id="navbarNav">
             <div className="navbar-nav mx-auto mt-2 mt-lg-0">
-              <button 
+              <button
                 className={`nav-tab-custom ${activeTab === 'regional' ? 'active' : ''}`}
                 onClick={() => handleTabChange('regional')}
               >
                 📍 Regional Summary
               </button>
-              <button 
+              <button
                 className={`nav-tab-custom ${activeTab === 'exec' ? 'active' : ''}`}
                 onClick={() => handleTabChange('exec')}
               >
                 📊 Executive Overview
               </button>
-              <button 
+              <button
                 className={`nav-tab-custom tab-customer ${activeTab === 'customer' ? 'active' : ''}`}
                 onClick={() => handleTabChange('customer')}
               >
                 👥 Customer Analytics
               </button>
-              <button 
+              <button
                 className={`nav-tab-custom tab-product ${activeTab === 'product' ? 'active' : ''}`}
                 onClick={() => handleTabChange('product')}
               >
                 🧴 Product Analytics
               </button>
-              <button 
+              <button
                 className={`nav-tab-custom tab-dev ${activeTab === 'dev' ? 'active' : ''}`}
                 onClick={() => handleTabChange('dev')}
               >
                 🔬 Product Development
               </button>
-              <button 
+              <button
                 className={`nav-tab-custom tab-sync ${activeTab === 'sync' ? 'active' : ''}`}
                 onClick={() => handleTabChange('sync')}
               >
                 🔄 Sync History & Preview
               </button>
             </div>
-            
+
             <div className="d-flex align-items-center mt-2 mt-lg-0 gap-2 flex-wrap justify-content-end">
               {isLive && (syncDiff.newRecords?.length > 0 || syncDiff.modifiedRecords?.length > 0) && (
-                <span 
-                  className="badge-custom text-warning" 
-                  style={{background: 'rgba(245, 158, 11, 0.08)', cursor: 'pointer', border: '1px solid #f59e0b', fontWeight: 'bold'}} 
+                <span
+                  className="badge-custom text-warning"
+                  style={{ background: 'rgba(245, 158, 11, 0.08)', cursor: 'pointer', border: '1px solid #f59e0b', fontWeight: 'bold' }}
                   onClick={() => handleTabChange('sync')}
                 >
                   ⚠️ รอนำเข้า (+{syncDiff.newRecords?.length || 0}, ~{syncDiff.modifiedRecords?.length || 0})
                 </span>
               )}
-              <span className={`badge-custom ${isLive ? 'border-danger text-danger' : 'border-secondary text-secondary'}`} style={{background: 'rgba(225, 29, 72, 0.03)'}}>
+              <span className={`badge-custom ${isLive ? 'border-danger text-danger' : 'border-secondary text-secondary'}`} style={{ background: 'rgba(225, 29, 72, 0.03)' }}>
                 {isLive ? '● Live Data (pumpui_show)' : '○ Sandbox (Mock Data)'}
               </span>
-              <span className="badge-custom border-danger text-danger" style={{background: 'rgba(225, 29, 72, 0.03)'}}>
+              <span className="badge-custom border-danger text-danger" style={{ background: 'rgba(225, 29, 72, 0.03)' }}>
                 📊 {(kpis.totalRows || 1500).toLocaleString()} แถว
               </span>
-              <span className="badge-custom border-danger text-danger" style={{background: 'rgba(225, 29, 72, 0.03)'}}>
+              <span className="badge-custom border-danger text-danger" style={{ background: 'rgba(225, 29, 72, 0.03)' }}>
                 🕒 ข้อมูลล่าสุด: {formatDate(kpis.lastSyncDate || '2025-12-31T00:00:00.000Z')}
               </span>
               <span className="badge-custom">2025 Full Year</span>
@@ -1270,15 +1343,15 @@ function App() {
           <div className="row g-4 mb-5">
             <div className="col-12 col-lg-5">
               <div className="dashboard-card" style={{ padding: '16px 12px 12px' }}>
-                <ThailandMap 
-                  activeRegion={selectedRegion} 
-                  onRegionSelect={setSelectedRegion} 
-                  regionSales={regionSales} 
+                <ThailandMap
+                  activeRegion={selectedRegion}
+                  onRegionSelect={setSelectedRegion}
+                  regionSales={regionSales}
                   topProvinces={topProvinces}
                 />
               </div>
             </div>
-            
+
             <div className="col-12 col-lg-7">
               <div className="dashboard-card d-flex flex-column justify-content-between" style={{ borderColor: 'rgba(225, 29, 72, 0.2)', boxShadow: 'var(--card-shadow)', padding: '28px' }}>
                 <div>
@@ -1290,7 +1363,7 @@ function App() {
                       รายได้ภาค: {fmtFull(regionSales[selectedRegion] || 0)}
                     </span>
                   </div>
-                  
+
                   <div className="row g-3 mb-3">
                     <div className="col-12 col-sm-6">
                       <div className="detail-grid-item">
@@ -1301,7 +1374,7 @@ function App() {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="col-12 col-sm-6">
                       <div className="detail-grid-item">
                         <div className="detail-grid-title">🍒 Favorite Flavors</div>
@@ -1345,7 +1418,7 @@ function App() {
                         <div className="detail-grid-title">🧴 Best Selling Products</div>
                         {currentRegDetail.topProducts.map((p, idx) => (
                           <div className="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom" style={{ borderColor: 'var(--border)', fontSize: '12.5px' }} key={p.name}>
-                            <span className="text-secondary text-truncate" style={{ maxWidth: '170px' }}>{idx+1}. {p.name.replace('น้ำเปล่าลอย', '')}</span>
+                            <span className="text-secondary text-truncate" style={{ maxWidth: '170px' }}>{idx + 1}. {p.name.replace('น้ำเปล่าลอย', '')}</span>
                             <span className="font-semibold text-danger" style={{ color: 'var(--accent)' }}>{fmtFull(p.sales)}</span>
                           </div>
                         ))}
@@ -1415,11 +1488,11 @@ function App() {
                     <span className="card-sub-clean">NetAmount รายเดือน (ม.ค. – ธ.ค. 2025)</span>
                   </div>
                   <div className="chart-container" style={{ height: '300px' }}>
-                    <Line data={monthlyChartData} options={{...chartDefaults, scales: lightScales}} />
+                    <Line data={monthlyChartData} options={{ ...chartDefaults, scales: lightScales }} />
                   </div>
                 </div>
               </div>
-              
+
               <div className="col-12 col-lg-4">
                 <div className="dashboard-card d-flex flex-column justify-content-between">
                   <div>
@@ -1428,7 +1501,7 @@ function App() {
                       <span className="card-sub-clean">สัดส่วนยอดขายรายภาค</span>
                     </div>
                     <div className="chart-container mx-auto" style={{ height: '180px', maxWidth: '180px' }}>
-                      <Doughnut data={regionDonutData} options={{...chartDefaults, cutout: '75%'}} />
+                      <Doughnut data={regionDonutData} options={{ ...chartDefaults, cutout: '75%' }} />
                     </div>
                   </div>
                   <div className="donut-legend">
@@ -1452,11 +1525,11 @@ function App() {
                     <span className="card-sub-clean">ยอดขายแยกตามกลุ่มหมวดหมู่สินค้า</span>
                   </div>
                   <div className="chart-container" style={{ height: '270px' }}>
-                    <Bar data={catBarData} options={{...chartDefaults, scales: lightScales}} />
+                    <Bar data={catBarData} options={{ ...chartDefaults, scales: lightScales }} />
                   </div>
                 </div>
               </div>
-              
+
               <div className="col-12 col-lg-6">
                 <div className="dashboard-card d-flex flex-column justify-content-between">
                   <div>
@@ -1465,16 +1538,16 @@ function App() {
                       <span className="card-sub-clean">สัดส่วนรายได้ บริษัท vs บุคคล</span>
                     </div>
                     <div className="chart-container mx-auto" style={{ height: '160px', maxWidth: '160px' }}>
-                      <Doughnut data={custTypeDonutData} options={{...chartDefaults, cutout: '75%'}} />
+                      <Doughnut data={custTypeDonutData} options={{ ...chartDefaults, cutout: '75%' }} />
                     </div>
                   </div>
                   <div className="mt-3">
                     <div className="progress-row">
                       <div className="progress-label">🏢 Company (บริษัท)</div>
                       <div className="progress-bar-wrap">
-                        <div 
-                          className="progress-bar-custom" 
-                          style={{ 
+                        <div
+                          className="progress-bar-custom"
+                          style={{
                             width: `${(customerRatio.Company / (customerRatio.Company + customerRatio.Individual) * 100).toFixed(1)}%`,
                             background: 'linear-gradient(90deg, var(--accent), var(--accent-hover))',
                             boxShadow: '0 2px 5px rgba(225, 29, 72, 0.1)'
@@ -1486,9 +1559,9 @@ function App() {
                     <div className="progress-row">
                       <div className="progress-label">👤 Individual (บุคคล)</div>
                       <div className="progress-bar-wrap">
-                        <div 
-                          className="progress-bar-custom" 
-                          style={{ 
+                        <div
+                          className="progress-bar-custom"
+                          style={{
                             width: `${(customerRatio.Individual / (customerRatio.Company + customerRatio.Individual) * 100).toFixed(1)}%`,
                             background: 'linear-gradient(90deg, var(--accent3), var(--accent4))'
                           }}
@@ -1561,9 +1634,9 @@ function App() {
                         <div className="progress-row" key={p.n}>
                           <div className="progress-label">{p.n}</div>
                           <div className="progress-bar-wrap">
-                            <div 
-                              className="progress-bar-custom" 
-                              style={{ 
+                            <div
+                              className="progress-bar-custom"
+                              style={{
                                 width: `${(p.v / maxVal * 100).toFixed(0)}%`,
                                 background: `linear-gradient(90deg, ${barColor}, #fff)`,
                                 boxShadow: `0 2px 5px rgba(225,29,72,0.03)`
@@ -1587,7 +1660,7 @@ function App() {
                     <span className="card-sub-clean">เปรียบเทียบประเภทลูกค้า</span>
                   </div>
                   <div className="chart-container" style={{ height: '280px' }}>
-                    <Bar data={custTypeBarData} options={{...chartDefaults, scales: lightScales}} />
+                    <Bar data={custTypeBarData} options={{ ...chartDefaults, scales: lightScales }} />
                   </div>
                 </div>
               </div>
@@ -1598,7 +1671,7 @@ function App() {
                     <span className="card-sub-clean">ยอดขายรายภาค</span>
                   </div>
                   <div className="chart-container" style={{ height: '280px' }}>
-                    <Bar data={regionBarData} options={{...chartDefaults, scales: lightScales}} />
+                    <Bar data={regionBarData} options={{ ...chartDefaults, scales: lightScales }} />
                   </div>
                 </div>
               </div>
@@ -1664,22 +1737,22 @@ function App() {
                     <span className="card-sub-clean">ยอดขายสะสมรายสินค้า</span>
                   </div>
                   <div className="chart-container" style={{ height: '320px' }}>
-                    <Bar 
-                      data={topProductBarData} 
+                    <Bar
+                      data={topProductBarData}
                       options={{
                         ...chartDefaults,
                         indexAxis: 'y',
                         scales: {
-                          x: { 
+                          x: {
                             grid: { color: 'rgba(255, 255, 255, 0.08)', drawBorder: false },
                             ticks: { color: '#94a3b8', font: { size: 11 }, callback: v => '฿' + (v / 1000) + 'K' }
                           },
-                          y: { 
-                            grid: { display: false }, 
-                            ticks: { color: 'var(--text-secondary)', font: { size: 12 } } 
+                          y: {
+                            grid: { display: false },
+                            ticks: { color: 'var(--text-secondary)', font: { size: 12 } }
                           }
                         }
-                      }} 
+                      }}
                     />
                   </div>
                 </div>
@@ -1701,7 +1774,7 @@ function App() {
                           borderWidth: 0,
                           hoverOffset: 10
                         }]
-                      }} options={{...chartDefaults, cutout: '75%'}} />
+                      }} options={{ ...chartDefaults, cutout: '75%' }} />
                     </div>
                   </div>
                   <div className="donut-legend">
@@ -1735,9 +1808,9 @@ function App() {
                             {isHero ? '⭐ ' : ''} {p.n.replace('น้ำเปล่าลอย', '')}
                           </div>
                           <div className="progress-bar-wrap">
-                            <div 
-                              className="progress-bar-custom" 
-                              style={{ 
+                            <div
+                              className="progress-bar-custom"
+                              style={{
                                 width: `${(p.v / maxP * 100).toFixed(0)}%`,
                                 background: `linear-gradient(90deg, ${barColor}, rgba(255,255,255,0.05))`,
                                 boxShadow: isHero ? '0 2px 6px rgba(99,102,241,0.25)' : `0 1px 3px rgba(0,0,0,0.01)`
@@ -1804,7 +1877,7 @@ function App() {
                     <h4 className="card-title-clean">🔥 Region × Category Revenue Heatmap</h4>
                     <span className="card-sub-clean">สเปกตรัมยอดขายแยกตามภาคและหมวดหมู่สินค้า</span>
                   </div>
-                  
+
                   {/* Heatmap Grid */}
                   <div className="table-responsive mt-3">
                     <div style={{ minWidth: '600px' }}>
@@ -1845,9 +1918,9 @@ function App() {
                     <div className="row row-cols-1 row-cols-md-2 g-3">
                       {productionRecommendations.map((d, index) => (
                         <div className="col" key={d.region}>
-                          <div 
-                            className="opp-card h-100" 
-                            style={{ 
+                          <div
+                            className="opp-card h-100"
+                            style={{
                               borderColor: COLORS[index % COLORS.length]
                             }}
                           >
@@ -1861,7 +1934,7 @@ function App() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="col-12 col-lg-6">
                 <div className="dashboard-card">
                   <div className="card-header-clean">
@@ -1869,16 +1942,16 @@ function App() {
                     <span className="card-sub-clean">สัดส่วนหมวดหมู่สินค้าจำแนกตามภาค</span>
                   </div>
                   <div className="chart-container" style={{ height: '320px' }}>
-                    <Bar 
-                      data={regionStackBarData} 
+                    <Bar
+                      data={regionStackBarData}
                       options={{
                         ...chartDefaults,
                         scales: {
                           x: { stacked: true, grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 11 } } },
-                          y: { 
-                            stacked: true, 
-                            grid: { color: 'rgba(255, 255, 255, 0.08)', drawBorder: false }, 
-                            ticks: { color: '#94a3b8', font: { size: 11 }, callback: v => '฿' + (v / 1000) + 'K' } 
+                          y: {
+                            stacked: true,
+                            grid: { color: 'rgba(255, 255, 255, 0.08)', drawBorder: false },
+                            ticks: { color: '#94a3b8', font: { size: 11 }, callback: v => '฿' + (v / 1000) + 'K' }
                           }
                         },
                         plugins: {
@@ -1889,7 +1962,7 @@ function App() {
                             labels: { color: '#94a3b8', font: { size: 12, family: "'Prompt', sans-serif" }, boxWidth: 14, padding: 15 }
                           }
                         }
-                      }} 
+                      }}
                     />
                   </div>
                 </div>
@@ -1957,15 +2030,15 @@ function App() {
                             let formattedDate = dateStr;
                             try {
                               const d = new Date(dateStr);
-                              formattedDate = d.toLocaleString('th-TH', { 
-                                day: 'numeric', 
-                                month: 'short', 
-                                year: 'numeric', 
-                                hour: '2-digit', 
+                              formattedDate = d.toLocaleString('th-TH', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
                                 minute: '2-digit',
                                 second: '2-digit'
                               }) + ' น.';
-                            } catch (e) {}
+                            } catch (e) { }
 
                             return (
                               <tr key={log.SyncID || i}>

@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node server.js",
     "etl": "node etl.js",
-    "seed-errors": "node introduce_errors.js"
+    "seed-errors": "node introduce_errors.js",
+    "check-svg": "node check_svg.js",
+    "update-db": "node update_database.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
