@@ -418,6 +418,7 @@ const provinceEnNameToRegion = {
   'Samut Prakan': 'ภาคกลาง', 'Nakhon Pathom': 'ภาคกลาง',
   'Samut Sakhon': 'ภาคกลาง', 'Samut Songkhram': 'ภาคกลาง',
   'Suphan Buri': 'ภาคกลาง', 'Nakhon Nayok': 'ภาคกลาง',
+  'Sukhothai': 'ภาคกลาง', 'Uthai Thani': 'ภาคกลาง', 'Kamphaeng Phet': 'ภาคกลาง',
   // ภาคตะวันตก
   'Tak': 'ภาคตะวันตก', 'Kanchanaburi': 'ภาคตะวันตก', 'Ratchaburi': 'ภาคตะวันตก',
   'Phetchaburi': 'ภาคตะวันตก', 'Prachuap Khiri Khan': 'ภาคตะวันตก',
@@ -453,6 +454,7 @@ const provinceEnToTH = {
   'Samut Prakan': 'สมุทรปราการ', 'Nakhon Pathom': 'นครปฐม',
   'Samut Sakhon': 'สมุทรสาคร', 'Samut Songkhram': 'สมุทรสงคราม',
   'Suphan Buri': 'สุพรรณบุรี', 'Nakhon Nayok': 'นครนายก',
+  'Sukhothai': 'สุโขทัย', 'Uthai Thani': 'อุทัยธานี', 'Kamphaeng Phet': 'กำแพงเพชร',
   'Tak': 'ตาก', 'Kanchanaburi': 'กาญจนบุรี', 'Ratchaburi': 'ราชบุรี',
   'Phetchaburi': 'เพชรบุรี', 'Prachuap Khiri Khan': 'ประจวบคีรีขันธ์',
   'Chachoengsao': 'ฉะเชิงเทรา', 'Chon Buri': 'ชลบุรี', 'Rayong': 'ระยอง',
@@ -517,52 +519,67 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
   const [tooltip, setTooltip] = useState({ show: false, x: 0, y: 0, province: '', region: '', provSales: null });
   const [viewMode, setViewMode] = useState('region'); // 'region' or 'province'
 
-  const maxSales = Math.max(...Object.values(regionSales), 1);
 
   useEffect(() => {
     setLoading(true);
-    // Try to load GeoJSON from GitHub via proxy (all 77 provinces)
-    axios.get('/github-raw/apisit/thailand.json/master/thailand.json')
+    // 1. Try to load GeoJSON directly from GitHub (all 77 provinces)
+    axios.get('https://raw.githubusercontent.com/apisit/thailand.json/master/thailand.json')
       .then(res => {
         const features = res.data.features || [];
-        const flattened = [];
+        const projected = [];
+        
         features.forEach(feature => {
-          const name = feature.properties?.name;
-          if (!name || !feature.geometry) return;
-          const region = provinceEnNameToRegion[name];
-          if (!region) return;
+          const enName = feature.properties?.name;
+          if (!enName || !feature.geometry) return;
+          
+          const region = provinceEnNameToRegion[enName];
+          if (!region) {
+            console.warn(`No region mapped for: ${enName}`);
+            return;
+          }
+          
           const d = coordsToSvgPath(feature.geometry);
           if (!d) return;
-          const thName = provinceEnToTH[name] || name;
-          flattened.push({ id: name, label: name, labelTH: thName, d, region });
-        });
-        if (flattened.length > 0) {
-          setPaths(flattened);
-          setLoading(false);
-        } else {
-          // Fallback to local JSON if GeoJSON has no valid features
-          return axios.get('/thailand_regions.json').then(r => {
-            const flat2 = [];
-            Object.entries(r.data).forEach(([regionName, provinces]) => {
-              provinces.forEach(p => flat2.push({ ...p, region: regionName }));
-            });
-            setPaths(flat2);
-            setLoading(false);
+          
+          const thName = provinceEnToTH[enName] || enName;
+          
+          projected.push({
+            id: enName.toLowerCase().replace(/\s+/g, '_'),
+            label: enName,
+            labelTH: thName,
+            region: region,
+            d: d
           });
+        });
+        
+        if (projected.length > 0) {
+          console.log(`Loaded and projected ${projected.length} provinces dynamically from GitHub.`);
+          setPaths(projected);
+          setLoading(false);
+          return;
         }
+        throw new Error("No paths projected");
       })
-      .catch(() => {
-        // Fallback to local JSON
+      .catch(err => {
+        console.warn("Failed to load/project GeoJSON from GitHub, falling back to local JSON:", err.message);
+        // Fallback: โหลดจากไฟล์ local (29 จังหวัดที่มีอยู่)
         axios.get('/thailand_regions.json')
           .then(res => {
             const flattened = [];
             Object.entries(res.data).forEach(([regionName, provinces]) => {
-              provinces.forEach(p => flattened.push({ ...p, region: regionName }));
+              provinces.forEach(p => {
+                flattened.push({
+                  ...p,
+                  region: regionName,
+                  labelTH: p.labelTH || p.label,
+                });
+              });
             });
             setPaths(flattened);
             setLoading(false);
           })
-          .catch(() => {
+          .catch(localErr => {
+            console.error("Local fallback also failed:", localErr);
             setPaths([]);
             setLoading(false);
           });
