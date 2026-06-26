@@ -87,6 +87,7 @@ async function runUpdate() {
       Price: sale.UnitPrice || product.StandardUnitPrice || 0,
       Quantity: sale.Qty || 0,
       NetAmount: sale.NetAmount || (sale.Qty * (sale.UnitPrice || product.StandardUnitPrice || 0)),
+      ProvinceID: province.ProvinceKey ? String(province.ProvinceKey) : 'UnknownID',
       Province: province.ProvinceName || 'Unknown Province',
       Region: province.Region || 'ภาคกลาง'
     });
@@ -110,6 +111,7 @@ async function runUpdate() {
         Price: sale.UnitPrice || product.StandardUnitPrice || 0,
         Quantity: sale.Qty || 0,
         NetAmount: sale.NetAmount || (sale.Qty * (sale.UnitPrice || product.StandardUnitPrice || 0)),
+        ProvinceID: province.ProvinceKey ? String(province.ProvinceKey) : 'UnknownID',
         Province: province.ProvinceName || 'Unknown Province',
         Region: province.Region || 'ภาคกลาง'
       });
@@ -145,6 +147,7 @@ async function runUpdate() {
       Price FLOAT,
       Quantity INT,
       NetAmount FLOAT,
+      ProvinceID VARCHAR(50),
       Province NVARCHAR(100),
       Region NVARCHAR(100)
     `;
@@ -178,7 +181,8 @@ async function runUpdate() {
       );
 
       CREATE TABLE pumpui_show_dim_geography (
-          Province NVARCHAR(100) NOT NULL PRIMARY KEY,
+          ProvinceID VARCHAR(50) NOT NULL PRIMARY KEY,
+          Province NVARCHAR(100) NOT NULL,
           Region NVARCHAR(100) NOT NULL
       );
 
@@ -187,13 +191,13 @@ async function runUpdate() {
           OrderDate DATETIME NOT NULL,
           CustomerID VARCHAR(50) NOT NULL,
           ProductID VARCHAR(50) NOT NULL,
-          Province NVARCHAR(100) NOT NULL,
+          ProvinceID VARCHAR(50) NOT NULL,
           Price FLOAT NOT NULL,
           Quantity INT NOT NULL,
           NetAmount FLOAT NOT NULL,
           CONSTRAINT FK_ShowFact_Customer FOREIGN KEY (CustomerID) REFERENCES pumpui_show_dim_customer(CustomerID),
           CONSTRAINT FK_ShowFact_Product FOREIGN KEY (ProductID) REFERENCES pumpui_show_dim_product(ProductID),
-          CONSTRAINT FK_ShowFact_Geography FOREIGN KEY (Province) REFERENCES pumpui_show_dim_geography(Province)
+          CONSTRAINT FK_ShowFact_Geography FOREIGN KEY (ProvinceID) REFERENCES pumpui_show_dim_geography(ProvinceID)
       );
     `);
 
@@ -211,12 +215,12 @@ async function runUpdate() {
           f.Price,
           f.Quantity,
           f.NetAmount,
-          f.Province,
+          g.Province,
           g.Region
       FROM pumpui_show_fact f
       LEFT JOIN pumpui_show_dim_customer c ON f.CustomerID = c.CustomerID
       LEFT JOIN pumpui_show_dim_product p ON f.ProductID = p.ProductID
-      LEFT JOIN pumpui_show_dim_geography g ON f.Province = g.Province;
+      LEFT JOIN pumpui_show_dim_geography g ON f.ProvinceID = g.ProvinceID;
     `);
 
     // Bulk insert
@@ -228,7 +232,7 @@ async function runUpdate() {
       const batchSize = 100;
       for (let i = 0; i < consolidatedData.length; i += batchSize) {
         const batch = consolidatedData.slice(i, i + batchSize);
-        let insertQuery = "INSERT INTO pumpui_erp (OrderID, OrderDate, CustomerID, CustomerName, CustomerType, ProductID, ProductName, ProductCategory, Price, Quantity, NetAmount, Province, Region) VALUES ";
+        let insertQuery = "INSERT INTO pumpui_erp (OrderID, OrderDate, CustomerID, CustomerName, CustomerType, ProductID, ProductName, ProductCategory, Price, Quantity, NetAmount, ProvinceID, Province, Region) VALUES ";
         
         const valueStrings = batch.map((r) => {
           const escapedCustName = r.CustomerName.replace(/'/g, "''");
@@ -243,7 +247,7 @@ async function runUpdate() {
           const prodNameVal = r.ProductName ? `N'${escapedProdName}'` : 'NULL';
           const catVal = r.ProductCategory ? `N'${escapedCategory}'` : 'NULL';
           
-          return `('${r.OrderID}', '${r.OrderDate}', '${r.CustomerID}', ${custNameVal}, N'${escapedCustomerType(r.CustomerType)}', '${r.ProductID}', ${prodNameVal}, ${catVal}, ${r.Price}, ${r.Quantity}, ${r.NetAmount}, ${provinceVal}, ${regionVal})`;
+          return `('${r.OrderID}', '${r.OrderDate}', '${r.CustomerID}', ${custNameVal}, N'${escapedCustomerType(r.CustomerType)}', '${r.ProductID}', ${prodNameVal}, ${catVal}, ${r.Price}, ${r.Quantity}, ${r.NetAmount}, '${r.ProvinceID}', ${provinceVal}, ${regionVal})`;
         });
         
         insertQuery += valueStrings.join(", ") + ";";
@@ -370,7 +374,7 @@ async function runUpdate() {
       DECLARE @ErrorOrderIDs TABLE (OrderID VARCHAR(50));
       INSERT INTO @ErrorOrderIDs
       SELECT OrderID FROM pumpui_erp
-      WHERE OrderID IS NULL OR OrderDate IS NULL OR CustomerID IS NULL OR ProductID IS NULL OR NetAmount IS NULL OR NetAmount < 0 OR Quantity IS NULL OR Quantity < 0 OR Price IS NULL OR Price < 0 OR Region IS NULL OR Region = '' OR Province IS NULL OR Province = '';
+      WHERE OrderID IS NULL OR OrderDate IS NULL OR CustomerID IS NULL OR ProductID IS NULL OR NetAmount IS NULL OR NetAmount < 0 OR Quantity IS NULL OR Quantity < 0 OR Price IS NULL OR Price < 0 OR Region IS NULL OR Region = '' OR ProvinceID IS NULL OR ProvinceID = '' OR Province IS NULL OR Province = '';
 
       SELECT @error_count = COUNT(*) FROM @ErrorOrderIDs;
 
@@ -406,25 +410,30 @@ async function runUpdate() {
       DELETE FROM pumpui_show_dim_product;
       DELETE FROM pumpui_show_dim_geography;
 
-      INSERT INTO pumpui_show_dim_geography (Province, Region)
-      SELECT DISTINCT Province, Region
+      INSERT INTO pumpui_show_dim_geography (ProvinceID, Province, Region)
+      SELECT DISTINCT ProvinceID, Province, Region
       FROM pumpui_erp
-      WHERE OrderID IS NOT NULL AND OrderDate IS NOT NULL AND CustomerID IS NOT NULL AND ProductID IS NOT NULL AND NetAmount IS NOT NULL AND NetAmount >= 0 AND Quantity IS NOT NULL AND Quantity >= 0 AND Price IS NOT NULL AND Price >= 0 AND Region IS NOT NULL AND Region <> '' AND Province IS NOT NULL AND Province <> '';
+      WHERE OrderID IS NOT NULL AND OrderDate IS NOT NULL AND CustomerID IS NOT NULL AND ProductID IS NOT NULL AND NetAmount IS NOT NULL AND NetAmount >= 0 AND Quantity IS NOT NULL AND Quantity >= 0 AND Price IS NOT NULL AND Price >= 0 AND Region IS NOT NULL AND Region <> '' AND ProvinceID IS NOT NULL AND ProvinceID <> '' AND Province IS NOT NULL AND Province <> '';
 
       INSERT INTO pumpui_show_dim_customer (CustomerID, CustomerName, CustomerType)
       SELECT DISTINCT CustomerID, CustomerName, CustomerType
       FROM pumpui_erp
-      WHERE OrderID IS NOT NULL AND OrderDate IS NOT NULL AND CustomerID IS NOT NULL AND ProductID IS NOT NULL AND NetAmount IS NOT NULL AND NetAmount >= 0 AND Quantity IS NOT NULL AND Quantity >= 0 AND Price IS NOT NULL AND Price >= 0 AND Region IS NOT NULL AND Region <> '' AND Province IS NOT NULL AND Province <> '';
+      WHERE OrderID IS NOT NULL AND OrderDate IS NOT NULL AND CustomerID IS NOT NULL AND ProductID IS NOT NULL AND NetAmount IS NOT NULL AND NetAmount >= 0 AND Quantity IS NOT NULL AND Quantity >= 0 AND Price IS NOT NULL AND Price >= 0 AND Region IS NOT NULL AND Region <> '' AND ProvinceID IS NOT NULL AND ProvinceID <> '' AND Province IS NOT NULL AND Province <> '';
 
       INSERT INTO pumpui_show_dim_product (ProductID, ProductName, ProductCategory)
       SELECT DISTINCT ProductID, ProductName, ProductCategory
       FROM pumpui_erp
-      WHERE OrderID IS NOT NULL AND OrderDate IS NOT NULL AND CustomerID IS NOT NULL AND ProductID IS NOT NULL AND NetAmount IS NOT NULL AND NetAmount >= 0 AND Quantity IS NOT NULL AND Quantity >= 0 AND Price IS NOT NULL AND Price >= 0 AND Region IS NOT NULL AND Region <> '' AND Province IS NOT NULL AND Province <> '';
+      WHERE OrderID IS NOT NULL AND OrderDate IS NOT NULL AND CustomerID IS NOT NULL AND ProductID IS NOT NULL AND NetAmount IS NOT NULL AND NetAmount >= 0 AND Quantity IS NOT NULL AND Quantity >= 0 AND Price IS NOT NULL AND Price >= 0 AND Region IS NOT NULL AND Region <> '' AND ProvinceID IS NOT NULL AND ProvinceID <> '' AND Province IS NOT NULL AND Province <> '';
 
-      INSERT INTO pumpui_show_fact (OrderID, OrderDate, CustomerID, ProductID, Province, Price, Quantity, NetAmount)
-      SELECT OrderID, OrderDate, CustomerID, ProductID, Province, Price, Quantity, NetAmount
+      INSERT INTO pumpui_show_fact (OrderID, OrderDate, CustomerID, ProductID, ProvinceID, Price, Quantity, NetAmount)
+      SELECT OrderID, OrderDate, CustomerID, ProductID, ProvinceID, Price, Quantity, NetAmount
       FROM pumpui_erp
-      WHERE OrderID IS NOT NULL AND OrderDate IS NOT NULL AND CustomerID IS NOT NULL AND ProductID IS NOT NULL AND NetAmount IS NOT NULL AND NetAmount >= 0 AND Quantity IS NOT NULL AND Quantity >= 0 AND Price IS NOT NULL AND Price >= 0 AND Region IS NOT NULL AND Region <> '' AND Province IS NOT NULL AND Province <> '';
+      WHERE OrderID IS NOT NULL AND OrderDate IS NOT NULL AND CustomerID IS NOT NULL AND ProductID IS NOT NULL AND NetAmount IS NOT NULL AND NetAmount >= 0 AND Quantity IS NOT NULL AND Quantity >= 0 AND Price IS NOT NULL AND Price >= 0 AND Region IS NOT NULL AND Region <> '' AND ProvinceID IS NOT NULL AND ProvinceID <> '' AND Province IS NOT NULL AND Province <> '';
+
+      -- Apply Customer Name Masking in the database
+      UPDATE pumpui_show_dim_customer
+      SET CustomerName = LEFT(CustomerName, 4) + '***'
+      WHERE CustomerName IS NOT NULL;
     `;
     await pool.request().query(syncQuery);
     console.log("Synchronization complete.");
@@ -441,7 +450,7 @@ async function runUpdate() {
 
     const errorCountRes = await pool.request().query(`
       SELECT COUNT(*) as cnt FROM pumpui_erp 
-      WHERE Quantity < 0 OR NetAmount IS NULL OR Region IS NULL OR Region = '' OR CustomerID IS NULL
+      WHERE Quantity < 0 OR NetAmount IS NULL OR Region IS NULL OR Region = '' OR CustomerID IS NULL OR ProvinceID IS NULL OR ProvinceID = '' OR Province IS NULL OR Province = ''
     `);
     const erpErrors = errorCountRes.recordset[0].cnt;
     console.log(`Corrupted records in pumpui_erp : ${erpErrors}`);

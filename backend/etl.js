@@ -108,6 +108,7 @@ async function runETL() {
       Price: sale.UnitPrice || product.StandardUnitPrice || 0,
       Quantity: sale.Qty || 0,
       NetAmount: sale.NetAmount || (sale.Qty * (sale.UnitPrice || product.StandardUnitPrice || 0)),
+      ProvinceID: province.ProvinceKey ? String(province.ProvinceKey) : 'UnknownID',
       Province: province.ProvinceName || 'Unknown Province',
       Region: province.Region || 'ภาคกลาง'
     });
@@ -131,6 +132,7 @@ async function runETL() {
         Price: sale.UnitPrice || product.StandardUnitPrice || 0,
         Quantity: sale.Qty || 0,
         NetAmount: sale.NetAmount || (sale.Qty * (sale.UnitPrice || product.StandardUnitPrice || 0)),
+        ProvinceID: province.ProvinceKey ? String(province.ProvinceKey) : 'UnknownID',
         Province: province.ProvinceName || 'Unknown Province',
         Region: province.Region || 'ภาคกลาง'
       });
@@ -159,6 +161,7 @@ async function runETL() {
       Price FLOAT,
       Quantity INT,
       NetAmount FLOAT,
+      ProvinceID VARCHAR(50),
       Province NVARCHAR(100),
       Region NVARCHAR(100)
     `;
@@ -193,7 +196,8 @@ async function runETL() {
       );
 
       CREATE TABLE pumpui_show_dim_geography (
-          Province NVARCHAR(100) NOT NULL PRIMARY KEY,
+          ProvinceID VARCHAR(50) NOT NULL PRIMARY KEY,
+          Province NVARCHAR(100) NOT NULL,
           Region NVARCHAR(100) NOT NULL
       );
 
@@ -202,13 +206,13 @@ async function runETL() {
           OrderDate DATETIME NOT NULL,
           CustomerID VARCHAR(50) NOT NULL,
           ProductID VARCHAR(50) NOT NULL,
-          Province NVARCHAR(100) NOT NULL,
+          ProvinceID VARCHAR(50) NOT NULL,
           Price FLOAT NOT NULL,
           Quantity INT NOT NULL,
           NetAmount FLOAT NOT NULL,
           CONSTRAINT FK_ShowFact_Customer FOREIGN KEY (CustomerID) REFERENCES pumpui_show_dim_customer(CustomerID),
           CONSTRAINT FK_ShowFact_Product FOREIGN KEY (ProductID) REFERENCES pumpui_show_dim_product(ProductID),
-          CONSTRAINT FK_ShowFact_Geography FOREIGN KEY (Province) REFERENCES pumpui_show_dim_geography(Province)
+          CONSTRAINT FK_ShowFact_Geography FOREIGN KEY (ProvinceID) REFERENCES pumpui_show_dim_geography(ProvinceID)
       );
     `);
 
@@ -226,12 +230,12 @@ async function runETL() {
           f.Price,
           f.Quantity,
           f.NetAmount,
-          f.Province,
+          g.Province,
           g.Region
       FROM pumpui_show_fact f
       LEFT JOIN pumpui_show_dim_customer c ON f.CustomerID = c.CustomerID
       LEFT JOIN pumpui_show_dim_product p ON f.ProductID = p.ProductID
-      LEFT JOIN pumpui_show_dim_geography g ON f.Province = g.Province;
+      LEFT JOIN pumpui_show_dim_geography g ON f.ProvinceID = g.ProvinceID;
     `);
 
     // Bulk insert records into pumpui_erp
@@ -248,7 +252,7 @@ async function runETL() {
       const batchSize = 100;
       for (let i = 0; i < consolidatedData.length; i += batchSize) {
         const batch = consolidatedData.slice(i, i + batchSize);
-        let insertQuery = "INSERT INTO pumpui_erp (OrderID, OrderDate, CustomerID, CustomerName, CustomerType, ProductID, ProductName, ProductCategory, Price, Quantity, NetAmount, Province, Region) VALUES ";
+        let insertQuery = "INSERT INTO pumpui_erp (OrderID, OrderDate, CustomerID, CustomerName, CustomerType, ProductID, ProductName, ProductCategory, Price, Quantity, NetAmount, ProvinceID, Province, Region) VALUES ";
         
         const valueStrings = batch.map((r) => {
           const escapedCustName = r.CustomerName.replace(/'/g, "''");
@@ -257,7 +261,7 @@ async function runETL() {
           const escapedProvince = r.Province.replace(/'/g, "''");
           const escapedRegion = r.Region.replace(/'/g, "''");
           
-          return `('${r.OrderID}', '${r.OrderDate}', '${r.CustomerID}', N'${escapedCustName}', N'${escapedCustomerType(r.CustomerType)}', '${r.ProductID}', N'${escapedProdName}', N'${escapedCategory}', ${r.Price}, ${r.Quantity}, ${r.NetAmount}, N'${escapedProvince}', N'${escapedRegion}')`;
+          return `('${r.OrderID}', '${r.OrderDate}', '${r.CustomerID}', N'${escapedCustName}', N'${escapedCustomerType(r.CustomerType)}', '${r.ProductID}', N'${escapedProdName}', N'${escapedCategory}', ${r.Price}, ${r.Quantity}, ${r.NetAmount}, '${r.ProvinceID}', N'${escapedProvince}', N'${escapedRegion}')`;
         });
         
         insertQuery += valueStrings.join(", ") + ";";
@@ -275,8 +279,8 @@ async function runETL() {
         DELETE FROM pumpui_show_dim_product;
         DELETE FROM pumpui_show_dim_geography;
 
-        INSERT INTO pumpui_show_dim_geography (Province, Region)
-        SELECT DISTINCT Province, Region FROM pumpui_erp WHERE Province IS NOT NULL AND Region IS NOT NULL;
+        INSERT INTO pumpui_show_dim_geography (ProvinceID, Province, Region)
+        SELECT DISTINCT ProvinceID, Province, Region FROM pumpui_erp WHERE ProvinceID IS NOT NULL AND Province IS NOT NULL AND Region IS NOT NULL;
 
         INSERT INTO pumpui_show_dim_customer (CustomerID, CustomerName, CustomerType)
         SELECT DISTINCT CustomerID, CustomerName, CustomerType FROM pumpui_erp WHERE CustomerID IS NOT NULL;
@@ -284,8 +288,13 @@ async function runETL() {
         INSERT INTO pumpui_show_dim_product (ProductID, ProductName, ProductCategory)
         SELECT DISTINCT ProductID, ProductName, ProductCategory FROM pumpui_erp WHERE ProductID IS NOT NULL;
 
-        INSERT INTO pumpui_show_fact (OrderID, OrderDate, CustomerID, ProductID, Province, Price, Quantity, NetAmount)
-        SELECT OrderID, OrderDate, CustomerID, ProductID, Province, Price, Quantity, NetAmount FROM pumpui_erp;
+        INSERT INTO pumpui_show_fact (OrderID, OrderDate, CustomerID, ProductID, ProvinceID, Price, Quantity, NetAmount)
+        SELECT OrderID, OrderDate, CustomerID, ProductID, ProvinceID, Price, Quantity, NetAmount FROM pumpui_erp;
+
+        -- Apply Customer Name Masking in the database
+        UPDATE pumpui_show_dim_customer
+        SET CustomerName = LEFT(CustomerName, 4) + '***'
+        WHERE CustomerName IS NOT NULL;
       `);
       console.log("Initial sync complete.");
 
