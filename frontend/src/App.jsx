@@ -1550,6 +1550,19 @@ function App() {
   // Selected Region's Specific Detail Object
   const currentRegDetail = regionalDetails[selectedRegion] || mockRegionalDetail['ภาคกลาง'];
 
+  const provincesInRegion = Object.entries(provinceEnNameToRegion)
+    .filter(([enName, reg]) => reg === selectedRegion)
+    .map(([enName, reg]) => {
+      const thName = provinceEnToTH[enName] || enName;
+      const sales = provinceSales[thName] || 0;
+      return {
+        id: enName.toLowerCase().replace(/\s+/g, '_'),
+        name: thName,
+        sales: sales
+      };
+    });
+  provincesInRegion.sort((a, b) => b.sales - a.sales);
+
   const formatDate = (dateStr) => {
     if (!dateStr) return 'N/A';
     try {
@@ -1729,6 +1742,43 @@ function App() {
                           <div className="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom" style={{ borderColor: 'var(--border)', fontSize: '12.5px' }} key={p.name}>
                             <span className="text-secondary text-truncate" style={{ maxWidth: '170px' }}>{idx + 1}. {p.name.replace('น้ำเปล่าลอย', '')}</span>
                             <span className="font-semibold text-danger" style={{ color: 'var(--accent)' }}>{fmtFull(p.sales)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  {/* Province Breakdown */}
+                  <div className="mt-4 mb-2">
+                    <div className="detail-grid-title mb-2" style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--accent)' }}>
+                      📍 ยอดขายแยกตามจังหวัดใน{selectedRegion} (เรียงจากมากไปน้อย)
+                    </div>
+                    <div style={{ 
+                      maxHeight: '160px', 
+                      overflowY: 'auto', 
+                      background: 'rgba(255,255,255,0.02)', 
+                      border: '1px solid rgba(255,255,255,0.06)', 
+                      borderRadius: '10px', 
+                      padding: '12px'
+                    }}>
+                      <div className="row g-2">
+                        {provincesInRegion.map((prov, idx) => (
+                          <div className="col-6 col-md-4" key={prov.id}>
+                            <div style={{ 
+                              background: 'rgba(255,255,255,0.03)', 
+                              border: '1px solid rgba(255,255,255,0.04)',
+                              borderRadius: '8px', 
+                              padding: '8px 10px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'center',
+                              height: '100%'
+                            }}>
+                              <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={prov.name}>
+                                {idx + 1}. {prov.name}
+                              </span>
+                              <span style={{ fontSize: '12.5px', color: '#f8fafc', fontWeight: 700, marginTop: '2px' }}>
+                                {fmtFull(prov.sales)}
+                              </span>
+                            </div>
                           </div>
                         ))}
                       </div>
