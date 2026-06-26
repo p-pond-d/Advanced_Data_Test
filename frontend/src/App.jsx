@@ -87,12 +87,25 @@ const ERROR_TYPE_LABELS = {
 
 // Generate mock detailed error rows for a given log entry
 const generateMockErrorDetails = (log) => {
-  if (!log || !log.errorDetails) return [];
-  // Parse all OrderIDs from errorDetails string
-  const raw = log.errorDetails.replace(/\(และอีก.*\)/, '').trim();
-  const ids = raw.split(',').map(s => s.trim()).filter(Boolean);
+  if (!log) return [];
+  const targetCount = log.errorCount || 0;
   const baseDate = new Date(log.SyncDate);
-  return ids.map((orderId, idx) => {
+  
+  // Parse all OrderIDs from errorDetails string
+  let ids = [];
+  if (log.errorDetails) {
+    const raw = log.errorDetails.replace(/\(และอีก.*\)/, '').trim();
+    ids = raw.split(',').map(s => s.trim()).filter(Boolean);
+  }
+  
+  // If we have fewer IDs than the target count, fill in with generated IDs
+  const allIds = [...ids];
+  while (allIds.length < targetCount) {
+    const nextNum = 100000 + allIds.length * 7 + 3; // make some fake unique IDs
+    allIds.push(String(nextNum));
+  }
+  
+  return allIds.map((orderId, idx) => {
     const typeNum = idx % 5;
     const meta = ERROR_TYPE_LABELS[typeNum];
     const fakeDate = new Date(baseDate);
@@ -114,6 +127,7 @@ const generateMockErrorDetails = (log) => {
     };
   });
 };
+
 
 // Global Chart Options Defaults
 ChartJS.defaults.font.family = "'Prompt', 'Inter', sans-serif";
