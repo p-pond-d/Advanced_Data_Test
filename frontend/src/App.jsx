@@ -519,6 +519,23 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
   const [tooltip, setTooltip] = useState({ show: false, x: 0, y: 0, province: '', region: '', provSales: null });
   const [viewMode, setViewMode] = useState('region'); // 'region' or 'province'
 
+  const cleanKey = (key) => key ? key.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+
+  const findRegion = (enName) => {
+    const search = cleanKey(enName);
+    for (const [key, reg] of Object.entries(provinceEnNameToRegion)) {
+      if (cleanKey(key) === search) return reg;
+    }
+    return null;
+  };
+
+  const findThaiName = (enName) => {
+    const search = cleanKey(enName);
+    for (const [key, thName] of Object.entries(provinceEnToTH)) {
+      if (cleanKey(key) === search) return thName;
+    }
+    return enName;
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -529,10 +546,10 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
         const projected = [];
         
         features.forEach(feature => {
-          const enName = feature.properties?.name;
+          const enName = feature.properties?.name || feature.properties?.NAME_1 || feature.properties?.Name;
           if (!enName || !feature.geometry) return;
           
-          const region = provinceEnNameToRegion[enName];
+          const region = findRegion(enName);
           if (!region) {
             console.warn(`No region mapped for: ${enName}`);
             return;
@@ -541,7 +558,7 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
           const d = coordsToSvgPath(feature.geometry);
           if (!d) return;
           
-          const thName = provinceEnToTH[enName] || enName;
+          const thName = findThaiName(enName);
           
           projected.push({
             id: enName.toLowerCase().replace(/\s+/g, '_'),
@@ -777,33 +794,52 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
             {Object.entries(labelCoords).map(([regionName, { x, y, name }]) => {
               const isSelected = activeRegion === regionName;
               const isHovered = hoveredRegion === regionName;
+              const regColor = REGION_COLORS[regionName] || '#6366f1';
 
               return (
-                <text
-                  key={regionName}
-                  x={x}
-                  y={y}
-                  fill={isSelected || isHovered ? '#ffffff' : (REGION_COLORS[regionName] || '#e2e8f0')}
-                  fontSize={isSelected ? '28' : isHovered ? '24' : '20'}
-                  fontWeight="900"
-                  cursor="pointer"
-                  onClick={() => onRegionSelect(regionName)}
-                  onMouseEnter={() => setHoveredRegion(regionName)}
-                  onMouseLeave={() => setHoveredRegion(null)}
-                  paintOrder="stroke"
-                  stroke="rgba(0,0,0,0.95)"
-                  strokeWidth="6"
-                  strokeLinejoin="round"
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  style={{
-                    transition: 'all 0.2s ease',
-                    userSelect: 'none',
-                    fontFamily: "'Prompt', sans-serif"
-                  }}
-                >
-                  {name}
-                </text>
+                <g key={regionName}>
+                  {/* Pill Background */}
+                  <rect
+                    x={x - 43}
+                    y={y - 17}
+                    width={86}
+                    height={34}
+                    rx={17}
+                    fill="rgba(15, 23, 42, 0.85)"
+                    stroke={isSelected || isHovered ? '#ffffff' : regColor}
+                    strokeWidth={isSelected || isHovered ? "2.5" : "1.5"}
+                    cursor="pointer"
+                    onClick={() => onRegionSelect(regionName)}
+                    onMouseEnter={() => setHoveredRegion(regionName)}
+                    onMouseLeave={() => setHoveredRegion(null)}
+                    style={{
+                      transition: 'all 0.2s ease',
+                      filter: isSelected ? `drop-shadow(0 0 4px ${regColor})` : 'none'
+                    }}
+                  />
+                  {/* Text Label */}
+                  <text
+                    x={x}
+                    y={y + 1}
+                    fill="#ffffff"
+                    fontSize={isSelected ? '15' : isHovered ? '14.5' : '13.5'}
+                    fontWeight="900"
+                    cursor="pointer"
+                    onClick={() => onRegionSelect(regionName)}
+                    onMouseEnter={() => setHoveredRegion(regionName)}
+                    onMouseLeave={() => setHoveredRegion(null)}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    style={{
+                      transition: 'all 0.2s ease',
+                      userSelect: 'none',
+                      pointerEvents: 'none',
+                      fontFamily: "'Prompt', sans-serif"
+                    }}
+                  >
+                    {name}
+                  </text>
+                </g>
               );
             })}
           </svg>
@@ -830,6 +866,7 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
               const isSelected = activeRegion === region.name;
               const isHovered = hoveredRegion === region.name;
               const fill = getFillColor(region.name, false);
+              const regColor = REGION_COLORS[region.name] || '#6366f1';
 
               return (
                 <g key={region.name}>
@@ -867,20 +904,34 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
                       transition: 'fill 0.28s ease, stroke 0.2s ease, stroke-width 0.2s ease'
                     }}
                   />
+                  {/* Pill Background for fallback labels */}
+                  <rect
+                    x={region.labelX - 36}
+                    y={region.labelY - 14}
+                    width={72}
+                    height={28}
+                    rx={14}
+                    fill="rgba(15, 23, 42, 0.85)"
+                    stroke={isSelected || isHovered ? '#ffffff' : regColor}
+                    strokeWidth={isSelected || isHovered ? "2" : "1"}
+                    pointerEvents="none"
+                    style={{ transition: 'all 0.2s ease' }}
+                  />
+                  {/* Text Label */}
                   <text
                     x={region.labelX}
-                    y={region.labelY}
-                    fill={isSelected ? '#ffffff' : isHovered ? '#f1f5f9' : '#cbd5e1'}
-                    fontSize={isSelected ? '16' : isHovered ? '14' : '12.5'}
+                    y={region.labelY + 1}
+                    fill="#ffffff"
+                    fontSize={isSelected ? '13' : isHovered ? '12.5' : '11.5'}
                     fontWeight="900"
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    paintOrder="stroke"
-                    stroke="#04080f"
-                    strokeWidth="5"
-                    strokeLinejoin="round"
                     pointerEvents="none"
-                    style={{ userSelect: 'none', transition: 'all 0.2s ease', fontFamily: "'Prompt', sans-serif" }}
+                    style={{
+                      userSelect: 'none',
+                      transition: 'all 0.2s ease',
+                      fontFamily: "'Prompt', sans-serif"
+                    }}
                   >
                     {region.label}
                   </text>
