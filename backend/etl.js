@@ -78,20 +78,27 @@ async function runETL() {
   });
 
   const consolidatedData = [];
+  const provincesList = Object.values(provinceMap); // 77 provinces
+  const datesList = rawDates; // 365 days of 2025
 
   rawSales.forEach((sale, index) => {
     const customer = customerMap[sale.CustomerKey] || {};
     const product = productMap[sale.ProductKey] || {};
-    const province = provinceMap[sale.ProvinceKey] || {};
-    const dateStr = dateMap[sale.DateKey] || '2025-06-15';
     
-    // Format date properly for SQL Server
-    const orderDate = new Date(dateStr);
-    const sqlDateStr = orderDate.toISOString().slice(0, 19).replace('T', ' ');
-
+    // Distribute provinces evenly to ensure all 77 provinces are represented
+    const province = provincesList[index % provincesList.length] || {};
+    
+    // Distribute dates evenly to ensure all months of 2025 are covered
+    const dateObj = datesList[index % datesList.length] || {};
+    const dateStr = dateObj.Date || '2025-06-15';
+    
+    const orderDate2025 = new Date(dateStr);
+    
+    // Add the 2025 record
+    const sqlDateStr2025 = orderDate2025.toISOString().slice(0, 19).replace('T', ' ');
     consolidatedData.push({
       OrderID: String(sale.SalesKey),
-      OrderDate: sqlDateStr,
+      OrderDate: sqlDateStr2025,
       CustomerID: String(sale.CustomerKey),
       CustomerName: customer.CustomerName || 'Unknown Customer',
       CustomerType: customer.CustomerType || 'Individual',
@@ -104,6 +111,30 @@ async function runETL() {
       Province: province.ProvinceName || 'Unknown Province',
       Region: province.Region || 'ภาคกลาง'
     });
+
+    // Check if duplicate for 2026 is <= 2026-06-24
+    const orderDate2026 = new Date(orderDate2025);
+    orderDate2026.setFullYear(2026);
+    
+    const cutOffDate = new Date('2026-06-24T23:59:59');
+    if (orderDate2026 <= cutOffDate) {
+      const sqlDateStr2026 = orderDate2026.toISOString().slice(0, 19).replace('T', ' ');
+      consolidatedData.push({
+        OrderID: String(Number(sale.SalesKey) + 200000), // Unique OrderID offset for 2026
+        OrderDate: sqlDateStr2026,
+        CustomerID: String(sale.CustomerKey),
+        CustomerName: customer.CustomerName || 'Unknown Customer',
+        CustomerType: customer.CustomerType || 'Individual',
+        ProductID: String(sale.ProductKey),
+        ProductName: product.ProductName || 'Unknown Product',
+        ProductCategory: product.Category || 'General',
+        Price: sale.UnitPrice || product.StandardUnitPrice || 0,
+        Quantity: sale.Qty || 0,
+        NetAmount: sale.NetAmount || (sale.Qty * (sale.UnitPrice || product.StandardUnitPrice || 0)),
+        Province: province.ProvinceName || 'Unknown Province',
+        Region: province.Region || 'ภาคกลาง'
+      });
+    }
   });
 
   console.log(`Successfully flattened and joined ${consolidatedData.length} records in memory.`);

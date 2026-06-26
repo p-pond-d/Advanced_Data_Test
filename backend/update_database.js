@@ -56,13 +56,20 @@ async function runUpdate() {
   rawDates.forEach(d => { dateMap[d.DateKey] = d.Date; });
 
   const consolidatedData = [];
+  const provincesList = Object.values(provinceMap); // 77 provinces
+  const datesList = rawDates; // 365 days of 2025
 
   // Generate 2025 baseline and 2026 data up to 2026-06-24
-  rawSales.forEach((sale) => {
+  rawSales.forEach((sale, index) => {
     const customer = customerMap[sale.CustomerKey] || {};
     const product = productMap[sale.ProductKey] || {};
-    const province = provinceMap[sale.ProvinceKey] || {};
-    const dateStr = dateMap[sale.DateKey] || '2025-06-15';
+    
+    // Distribute provinces evenly to ensure all 77 provinces are represented
+    const province = provincesList[index % provincesList.length] || {};
+    
+    // Distribute dates evenly to ensure all months of 2025 are covered
+    const dateObj = datesList[index % datesList.length] || {};
+    const dateStr = dateObj.Date || '2025-06-15';
     
     const orderDate2025 = new Date(dateStr);
     
@@ -249,9 +256,9 @@ async function runUpdate() {
       throw err;
     }
 
-    // Corrupt exactly 7% of records
-    console.log("Introducing exactly 7% errors into pumpui_erp...");
-    const countToUpdate = Math.round(consolidatedData.length * 0.07);
+    // Corrupt exactly 5% of records
+    console.log("Introducing exactly 5% errors into pumpui_erp...");
+    const countToUpdate = Math.round(consolidatedData.length * 0.05);
     
     // Shuffling order ids to select random records
     const allOrderIds = consolidatedData.map(r => r.OrderID);
@@ -440,7 +447,7 @@ async function runUpdate() {
     console.log(`Corrupted records in pumpui_erp : ${erpErrors}`);
     
     const calculatedErrorRate = (erpErrors / erpTotal * 100).toFixed(2);
-    console.log(`Actual Error Rate: ${calculatedErrorRate}% (Target: 7.00%)`);
+    console.log(`Actual Error Rate: ${calculatedErrorRate}% (Target: 5.00%)`);
 
     const dateRangeRes = await pool.request().query("SELECT MIN(OrderDate) as minDate, MAX(OrderDate) as maxDate FROM pumpui_erp");
     console.log(`Date range in pumpui_erp : Min = ${dateRangeRes.recordset[0].minDate.toISOString()}, Max = ${dateRangeRes.recordset[0].maxDate.toISOString()}`);

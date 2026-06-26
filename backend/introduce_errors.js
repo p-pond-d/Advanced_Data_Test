@@ -29,11 +29,11 @@ async function introduceErrors() {
       return;
     }
 
-    // Shuffle the records to pick a random 10%
+    // Shuffle the records to pick a random 5%
     const shuffled = [...records].sort(() => 0.5 - Math.random());
-    const countToUpdate = Math.floor(records.length * 0.1); // 10% of records
+    const countToUpdate = Math.floor(records.length * 0.05); // 5% of records
     const targets = shuffled.slice(0, countToUpdate);
-    console.log(`Introducing errors into ${countToUpdate} records...`);
+    console.log(`Introducing errors into ${countToUpdate} records (5%)...`);
 
     const transaction = new sql.Transaction(pool);
     await transaction.begin();
