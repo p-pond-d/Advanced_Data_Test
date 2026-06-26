@@ -347,6 +347,103 @@ app.get('/api/province-sales', async (req, res) => {
   }
 });
 
+// 5.2 Province Specific Details
+app.get('/api/province/:name', async (req, res) => {
+  const provName = req.params.name;
+  try {
+    const pool = await getPool();
+    
+    // 1. Basic stats
+    const statsRes = await pool.request()
+      .input('provName', sql.NVarChar, provName)
+      .query(`
+        SELECT 
+          Province,
+          Region,
+          SUM(NetAmount) as totalSales,
+          COUNT(DISTINCT OrderID) as totalOrders,
+          COUNT(DISTINCT CustomerID) as totalCustomers
+        FROM pumpui_show
+        WHERE Province = @provName
+        GROUP BY Province, Region
+      `);
+      
+    if (statsRes.recordset.length === 0) {
+      return res.status(404).json({ error: 'Province not found' });
+    }
+    
+    const stats = statsRes.recordset[0];
+    
+    // 2. Rank
+    const rankRes = await pool.request()
+      .query(`
+        SELECT Province, ROW_NUMBER() OVER (ORDER BY SUM(NetAmount) DESC) as rnk
+        FROM pumpui_show
+        GROUP BY Province
+      `);
+      
+    const rankItem = rankRes.recordset.find(r => r.Province === provName);
+    const rank = rankItem ? rankItem.rnk : 77;
+    
+    // 3. Customer Segments (Company vs Individual)
+    const segsRes = await pool.request()
+      .input('provName', sql.NVarChar, provName)
+      .query(`
+        SELECT 
+          CustomerType,
+          SUM(NetAmount) as revenue
+        FROM pumpui_show
+        WHERE Province = @provName
+        GROUP BY CustomerType
+      `);
+      
+    // 4. Top Products
+    const prodRes = await pool.request()
+      .input('provName', sql.NVarChar, provName)
+      .query(`
+        SELECT TOP 3
+          ProductName,
+          SUM(NetAmount) as revenue,
+          SUM(Quantity) as quantity
+        FROM pumpui_show
+        WHERE Province = @provName
+        GROUP BY ProductName
+        ORDER BY revenue DESC
+      `);
+      
+    const totalRev = segsRes.recordset.reduce((acc, curr) => acc + (curr.revenue || 0), 0);
+    const compItem = segsRes.recordset.find(r => r.CustomerType === 'Company');
+    const indItem = segsRes.recordset.find(r => r.CustomerType === 'Individual');
+    
+    const compRatio = totalRev > 0 ? parseFloat(( (compItem ? compItem.revenue : 0) / totalRev * 100).toFixed(1)) : 50;
+    const indRatio = totalRev > 0 ? parseFloat(( (indItem ? indItem.revenue : 0) / totalRev * 100).toFixed(1)) : 50;
+
+    // Generate recommendation dynamically
+    const topProduct = prodRes.recordset[0] ? prodRes.recordset[0].ProductName.replace('น้ำเปล่าลอย', '') : 'ทั่วไป';
+    const recs = {
+      productionRecommendation: `ขยายการจัดส่งสินค้ากลุ่ม ลอย${topProduct} ไปยังตัวแทนจำหน่ายในพื้นที่เพิ่มขึ้น 15% เพื่อรองรับความต้องการสูง`,
+      newProductOpportunity: `นำเสนอรสชาติกลุ่มผลไม้/สมุนไพร เพื่อทำตลาดเจาะกลุ่มผู้บริโภคระดับพรีเมียมในจังหวัด`
+    };
+
+    res.json({
+      province: stats.Province,
+      region: stats.Region,
+      totalSales: stats.totalSales,
+      totalOrders: stats.totalOrders,
+      totalCustomers: stats.totalCustomers,
+      rank: rank,
+      companyRatio: compRatio,
+      individualRatio: indRatio,
+      topProducts: prodRes.recordset.map(r => ({ name: r.ProductName, sales: r.revenue })),
+      popularFlavor: topProduct,
+      productionRecommendation: recs.productionRecommendation,
+      newProductOpportunity: recs.newProductOpportunity
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 6. Top 10 Customers & Top 10 Provinces
 app.get('/api/top-analytics', async (req, res) => {
   try {

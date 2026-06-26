@@ -511,7 +511,7 @@ function coordsToSvgPath(geometry) {
   }).filter(Boolean).join(' ');
 }
 
-function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces = [], provinceSales = {} }) {
+function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces = [], provinceSales = {}, onProvinceSelect }) {
   const [paths, setPaths] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hoveredRegion, setHoveredRegion] = useState(null);
@@ -751,8 +751,12 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
                           : 'rgba(255, 255, 255, 0.2)'
                     }
                     strokeWidth={isProvHovered ? '2.5' : (isSelected || isHovered) ? '1.5' : '0.7'}
-                    cursor="pointer"
-                    onClick={() => onRegionSelect(reg)}
+                    onClick={() => {
+                      onRegionSelect(reg);
+                      if (onProvinceSelect) {
+                        onProvinceSelect(thName);
+                      }
+                    }}
                     onMouseEnter={() => {
                       setHoveredRegion(reg);
                       setHoveredProvince(p.id);
@@ -760,6 +764,7 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
                     onMouseMove={(e) => handleMouseMove(e, p)}
                     onMouseLeave={handleMouseLeave}
                     style={{
+                      cursor: 'pointer',
                       transition: 'fill 0.25s ease, stroke 0.2s ease, stroke-width 0.2s ease',
                       filter: isSelected ? `drop-shadow(0 0 6px ${color}aa)` : 'none'
                     }}
@@ -1244,6 +1249,78 @@ function App() {
   const [syncLogs, setSyncLogs] = useState(mockSyncLogs);
   const [syncDiff, setSyncDiff] = useState(mockSyncDiff);
   const [selectedErrorLog, setSelectedErrorLog] = useState(null); // For error detail modal
+  const [selectedProvince, setSelectedProvince] = useState(null);
+  const [provinceDetail, setProvinceDetail] = useState(null);
+  const [loadingProvince, setLoadingProvince] = useState(false);
+
+  const handleRegionSelect = (reg) => {
+    setSelectedRegion(reg);
+    setSelectedProvince(null);
+  };
+
+  const getMockProvinceDetail = (provName, regName) => {
+    const sales = provinceSales[provName] || Math.floor(Math.random() * 20000) + 5000;
+    const rank = Math.floor(Math.random() * 5) + 1;
+    const isCompany = provName.charCodeAt(0) % 2 === 0;
+    const compRatio = isCompany ? 65 : 40;
+    const indRatio = 100 - compRatio;
+    
+    const flavors = ['ขิง-มะนาว', 'เก็กฮวย', 'ใบเตย-มะลิ', 'อัญชัน', 'ลิ้นจี่', 'ส้มยูสุ'];
+    const f1 = flavors[provName.charCodeAt(0) % flavors.length];
+    const f2 = flavors[(provName.charCodeAt(0) + 1) % flavors.length];
+    const f3 = flavors[(provName.charCodeAt(0) + 2) % flavors.length];
+    
+    return {
+      province: provName,
+      region: regName,
+      totalSales: sales,
+      totalOrders: Math.round(sales / 1200),
+      totalCustomers: Math.round(sales / 2500) + 2,
+      rank: rank,
+      companyRatio: compRatio,
+      individualRatio: indRatio,
+      topProducts: [
+        { name: `น้ำเปล่าลอย${f1}`, sales: Math.round(sales * 0.5) },
+        { name: `น้ำเปล่าลอย${f2}`, sales: Math.round(sales * 0.3) },
+        { name: `น้ำเปล่าลอย${f3}`, sales: Math.round(sales * 0.2) }
+      ],
+      popularFlavor: `${f1}, ${f2}`,
+      productionRecommendation: `ขยายการจัดส่งสินค้ากลุ่ม ลอย${f1} ไปยังตัวแทนจำหน่ายในพื้นที่เพิ่มขึ้น 15% เพื่อรองรับความต้องการสูง`,
+      newProductOpportunity: `นำเสนอรสชาติกลุ่มผลไม้/สมุนไพร เพื่อทำตลาดเจาะกลุ่มผู้บริโภคระดับพรีเมียมในจังหวัด`
+    };
+  };
+
+  useEffect(() => {
+    if (!selectedProvince) {
+      setProvinceDetail(null);
+      return;
+    }
+    
+    let regName = 'ภาคกลาง';
+    for (const [enName, reg] of Object.entries(provinceEnNameToRegion)) {
+      const thName = provinceEnToTH[enName] || enName;
+      if (thName === selectedProvince) {
+        regName = reg;
+        break;
+      }
+    }
+
+    if (isLive) {
+      setLoadingProvince(true);
+      axios.get(`/api/province/${encodeURIComponent(selectedProvince)}`)
+        .then(res => {
+          setProvinceDetail(res.data);
+          setLoadingProvince(false);
+        })
+        .catch(err => {
+          console.warn("Failed to fetch province detail, using mock fallback:", err.message);
+          setProvinceDetail(getMockProvinceDetail(selectedProvince, regName));
+          setLoadingProvince(false);
+        });
+    } else {
+      setProvinceDetail(getMockProvinceDetail(selectedProvince, regName));
+    }
+  }, [selectedProvince, isLive, provinceSales]);
 
   // Sync tab with URL hash
   useEffect(() => {
@@ -1666,10 +1743,11 @@ function App() {
               <div className="dashboard-card" style={{ padding: '16px 12px 12px' }}>
                 <ThailandMap
                   activeRegion={selectedRegion}
-                  onRegionSelect={setSelectedRegion}
+                  onRegionSelect={handleRegionSelect}
                   regionSales={regionSales}
                   topProvinces={topProvinces}
                   provinceSales={provinceSales}
+                  onProvinceSelect={setSelectedProvince}
                 />
               </div>
             </div>
@@ -1677,120 +1755,235 @@ function App() {
             <div className="col-12 col-lg-7">
               <div className="dashboard-card d-flex flex-column justify-content-between" style={{ borderColor: 'rgba(225, 29, 72, 0.2)', boxShadow: 'var(--card-shadow)', padding: '28px' }}>
                 <div>
-                  <div className="card-header-clean mb-4 pb-3">
-                    <h3 className="card-title-clean fs-4 text-uppercase mb-0" style={{ color: 'var(--accent)', fontWeight: 700, letterSpacing: '0.5px' }}>
-                      📍 Region Summary: {selectedRegion}
-                    </h3>
-                    <span className="badge-custom px-3 py-2">
-                      รายได้ภาค: {fmtFull(regionSales[selectedRegion] || 0)}
-                    </span>
-                  </div>
-
-                  <div className="row g-3 mb-3">
-                    <div className="col-12 col-sm-6">
-                      <div className="detail-grid-item">
-                        <div className="detail-grid-title">🏆 Province Leader</div>
-                        <div className="detail-grid-value">{currentRegDetail.topProvince}</div>
-                        <div className="small text-danger mt-2 font-semibold">
-                          ยอดขายสุทธิ: {fmtFull(currentRegDetail.topProvinceSales)}
-                        </div>
+                  {!selectedProvince ? (
+                    <>
+                      <div className="card-header-clean mb-4 pb-3">
+                        <h3 className="card-title-clean fs-4 text-uppercase mb-0" style={{ color: 'var(--accent)', fontWeight: 700, letterSpacing: '0.5px' }}>
+                          📍 Region Summary: {selectedRegion}
+                        </h3>
+                        <span className="badge-custom px-3 py-2">
+                          รายได้ภาค: {fmtFull(regionSales[selectedRegion] || 0)}
+                        </span>
                       </div>
-                    </div>
 
-                    <div className="col-12 col-sm-6">
-                      <div className="detail-grid-item">
-                        <div className="detail-grid-title">🍒 Favorite Flavors</div>
-                        <div className="detail-grid-value fs-5 mt-1">
-                          {currentRegDetail.popularFlavor}
-                        </div>
-                        <div className="small text-muted mt-2">
-                          รสชาติขายสะสมยอดนิยมประจำภาค
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="row g-3">
-                    <div className="col-12 col-sm-6">
-                      <div className="detail-grid-item d-flex flex-column justify-content-between">
-                        <div>
-                          <div className="detail-grid-title">👥 Customer Segmentation</div>
-                        </div>
-                        <div>
-                          <div className="progress-row mb-2">
-                            <div className="progress-label" style={{ minWidth: '80px' }}>🏢 บริษัท</div>
-                            <div className="progress-bar-wrap">
-                              <div className="progress-bar-custom" style={{ width: `${currentRegDetail.companyRatio}%`, background: 'var(--accent)', boxShadow: '0 2px 5px rgba(225, 29, 72, 0.15)' }}></div>
-                            </div>
-                            <div className="progress-val" style={{ minWidth: '45px' }}>{currentRegDetail.companyRatio}%</div>
-                          </div>
-                          <div className="progress-row mb-0">
-                            <div className="progress-label" style={{ minWidth: '80px' }}>👤 บุคคล</div>
-                            <div className="progress-bar-wrap">
-                              <div className="progress-bar-custom" style={{ width: `${currentRegDetail.individualRatio}%`, background: 'var(--accent4)' }}></div>
-                            </div>
-                            <div className="progress-val" style={{ minWidth: '45px' }}>{currentRegDetail.individualRatio}%</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="col-12 col-sm-6">
-                      <div className="detail-grid-item">
-                        <div className="detail-grid-title">🧴 Best Selling Products</div>
-                        {currentRegDetail.topProducts.map((p, idx) => (
-                          <div className="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom" style={{ borderColor: 'var(--border)', fontSize: '12.5px' }} key={p.name}>
-                            <span className="text-secondary text-truncate" style={{ maxWidth: '170px' }}>{idx + 1}. {p.name.replace('น้ำเปล่าลอย', '')}</span>
-                            <span className="font-semibold text-danger" style={{ color: 'var(--accent)' }}>{fmtFull(p.sales)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  {/* Province Breakdown */}
-                  <div className="mt-4 mb-2">
-                    <div className="detail-grid-title mb-2" style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--accent)' }}>
-                      📍 ยอดขายแยกตามจังหวัดใน{selectedRegion} (เรียงจากมากไปน้อย)
-                    </div>
-                    <div style={{ 
-                      maxHeight: '160px', 
-                      overflowY: 'auto', 
-                      background: 'rgba(255,255,255,0.02)', 
-                      border: '1px solid rgba(255,255,255,0.06)', 
-                      borderRadius: '10px', 
-                      padding: '12px'
-                    }}>
-                      <div className="row g-2">
-                        {provincesInRegion.map((prov, idx) => (
-                          <div className="col-6 col-md-4" key={prov.id}>
-                            <div style={{ 
-                              background: 'rgba(255,255,255,0.03)', 
-                              border: '1px solid rgba(255,255,255,0.04)',
-                              borderRadius: '8px', 
-                              padding: '8px 10px',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              justifyContent: 'center',
-                              height: '100%'
-                            }}>
-                              <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={prov.name}>
-                                {idx + 1}. {prov.name}
-                              </span>
-                              <span style={{ fontSize: '12.5px', color: '#f8fafc', fontWeight: 700, marginTop: '2px' }}>
-                                {fmtFull(prov.sales)}
-                              </span>
+                      <div className="row g-3 mb-3">
+                        <div className="col-12 col-sm-6">
+                          <div className="detail-grid-item">
+                            <div className="detail-grid-title">🏆 Province Leader</div>
+                            <div className="detail-grid-value">{currentRegDetail.topProvince}</div>
+                            <div className="small text-danger mt-2 font-semibold">
+                              ยอดขายสุทธิ: {fmtFull(currentRegDetail.topProvinceSales)}
                             </div>
                           </div>
-                        ))}
+                        </div>
+
+                        <div className="col-12 col-sm-6">
+                          <div className="detail-grid-item">
+                            <div className="detail-grid-title">🍒 Favorite Flavors</div>
+                            <div className="detail-grid-value fs-5 mt-1">
+                              {currentRegDetail.popularFlavor}
+                            </div>
+                            <div className="small text-muted mt-2">
+                              รสชาติขายสะสมยอดนิยมประจำภาค
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+
+                      <div className="row g-3">
+                        <div className="col-12 col-sm-6">
+                          <div className="detail-grid-item d-flex flex-column justify-content-between">
+                            <div>
+                              <div className="detail-grid-title">👥 Customer Segmentation</div>
+                            </div>
+                            <div>
+                              <div className="progress-row mb-2">
+                                <div className="progress-label" style={{ minWidth: '80px' }}>🏢 บริษัท</div>
+                                <div className="progress-bar-wrap">
+                                  <div className="progress-bar-custom" style={{ width: `${currentRegDetail.companyRatio}%`, background: 'var(--accent)', boxShadow: '0 2px 5px rgba(225, 29, 72, 0.15)' }}></div>
+                                </div>
+                                <div className="progress-val" style={{ minWidth: '45px' }}>{currentRegDetail.companyRatio}%</div>
+                              </div>
+                              <div className="progress-row mb-0">
+                                <div className="progress-label" style={{ minWidth: '80px' }}>👤 บุคคล</div>
+                                <div className="progress-bar-wrap">
+                                  <div className="progress-bar-custom" style={{ width: `${currentRegDetail.individualRatio}%`, background: 'var(--accent4)' }}></div>
+                                </div>
+                                <div className="progress-val" style={{ minWidth: '45px' }}>{currentRegDetail.individualRatio}%</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="col-12 col-sm-6">
+                          <div className="detail-grid-item">
+                            <div className="detail-grid-title">🧴 Best Selling Products</div>
+                            {currentRegDetail.topProducts.map((p, idx) => (
+                              <div className="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom" style={{ borderColor: 'var(--border)', fontSize: '12.5px' }} key={p.name}>
+                                <span className="text-secondary text-truncate" style={{ maxWidth: '170px' }}>{idx + 1}. {p.name.replace('น้ำเปล่าลอย', '')}</span>
+                                <span className="font-semibold text-danger" style={{ color: 'var(--accent)' }}>{fmtFull(p.sales)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      {/* Province Breakdown */}
+                      <div className="mt-4 mb-2">
+                        <div className="detail-grid-title mb-2" style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--accent)' }}>
+                          📍 ยอดขายแยกตามจังหวัดใน{selectedRegion} (คลิกเพื่อดูรายละเอียด)
+                        </div>
+                        <div style={{ 
+                          maxHeight: '160px', 
+                          overflowY: 'auto', 
+                          background: 'rgba(255,255,255,0.02)', 
+                          border: '1px solid rgba(255,255,255,0.06)', 
+                          borderRadius: '10px', 
+                          padding: '12px'
+                        }}>
+                          <div className="row g-2">
+                            {provincesInRegion.map((prov, idx) => (
+                              <div className="col-6 col-md-4" key={prov.id} onClick={() => setSelectedProvince(prov.name)} style={{ cursor: 'pointer' }}>
+                                <div style={{ 
+                                  background: 'rgba(255,255,255,0.03)', 
+                                  border: '1px solid rgba(255,255,255,0.04)',
+                                  borderRadius: '8px', 
+                                  padding: '8px 10px',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  justifyContent: 'center',
+                                  height: '100%'
+                                }}
+                                className="province-card-item"
+                                >
+                                  <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={prov.name}>
+                                    {idx + 1}. {prov.name}
+                                  </span>
+                                  <span style={{ fontSize: '12.5px', color: '#f8fafc', fontWeight: 700, marginTop: '2px' }}>
+                                    {fmtFull(prov.sales)}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="card-header-clean mb-4 pb-3">
+                        <div className="d-flex align-items-center gap-2">
+                          <button 
+                            className="btn btn-sm btn-outline-secondary" 
+                            onClick={() => setSelectedProvince(null)}
+                            style={{ border: '1px solid var(--border)', color: '#fff', fontSize: '12px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', padding: '4px 10px' }}
+                          >
+                            ⬅️ ย้อนกลับไปภาพรวม {selectedRegion}
+                          </button>
+                          <h3 className="card-title-clean fs-4 text-uppercase mb-0" style={{ color: 'var(--accent)', fontWeight: 700, letterSpacing: '0.5px' }}>
+                            📍 Province Summary: {selectedProvince}
+                          </h3>
+                        </div>
+                        <span className="badge-custom px-3 py-2">
+                          ยอดขายจังหวัด: {fmtFull(provinceSales[selectedProvince] || 0)}
+                        </span>
+                      </div>
+
+                      {loadingProvince ? (
+                        <div className="text-center py-5">
+                          <div className="spinner-border text-danger" role="status" style={{ width: '3rem', height: '3rem' }}>
+                            <span className="visually-hidden">กำลังโหลด...</span>
+                          </div>
+                          <div className="mt-3 text-muted">กำลังโหลดข้อมูลจังหวัด...</div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="row g-3 mb-3">
+                            <div className="col-12 col-sm-4">
+                              <div className="detail-grid-item">
+                                <div className="detail-grid-title">🏆 Regional Rank</div>
+                                <div className="detail-grid-value">#{provinceDetail?.rank || '—'}</div>
+                                <div className="small text-muted mt-2">
+                                  อันดับยอดขายภายในภาค
+                                </div>
+                              </div>
+                            </div>
+                            <div className="col-12 col-sm-4">
+                              <div className="detail-grid-item">
+                                <div className="detail-grid-title">📦 Total Orders</div>
+                                <div className="detail-grid-value">{provinceDetail?.totalOrders?.toLocaleString() || '—'}</div>
+                                <div className="small text-muted mt-2">
+                                  จำนวนออเดอร์สะสม
+                                </div>
+                              </div>
+                            </div>
+                            <div className="col-12 col-sm-4">
+                              <div className="detail-grid-item">
+                                <div className="detail-grid-title">👥 Unique Customers</div>
+                                <div className="detail-grid-value">{provinceDetail?.totalCustomers?.toLocaleString() || '—'}</div>
+                                <div className="small text-muted mt-2">
+                                  ฐานลูกค้าในพื้นที่
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="row g-3">
+                            <div className="col-12 col-sm-6">
+                              <div className="detail-grid-item d-flex flex-column justify-content-between">
+                                <div>
+                                  <div className="detail-grid-title">👥 Customer Segmentation</div>
+                                </div>
+                                <div>
+                                  <div className="progress-row mb-2">
+                                    <div className="progress-label" style={{ minWidth: '80px' }}>🏢 บริษัท</div>
+                                    <div className="progress-bar-wrap">
+                                      <div className="progress-bar-custom" style={{ width: `${provinceDetail?.companyRatio || 50}%`, background: 'var(--accent)', boxShadow: '0 2px 5px rgba(225, 29, 72, 0.15)' }}></div>
+                                    </div>
+                                    <div className="progress-val" style={{ minWidth: '45px' }}>{provinceDetail?.companyRatio || 50}%</div>
+                                  </div>
+                                  <div className="progress-row mb-0">
+                                    <div className="progress-label" style={{ minWidth: '80px' }}>👤 บุคคล</div>
+                                    <div className="progress-bar-wrap">
+                                      <div className="progress-bar-custom" style={{ width: `${provinceDetail?.individualRatio || 50}%`, background: 'var(--accent4)' }}></div>
+                                    </div>
+                                    <div className="progress-val" style={{ minWidth: '45px' }}>{provinceDetail?.individualRatio || 50}%</div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="col-12 col-sm-6">
+                              <div className="detail-grid-item">
+                                <div className="detail-grid-title">🧴 Best Selling Products</div>
+                                {provinceDetail?.topProducts && provinceDetail.topProducts.length > 0 ? (
+                                  provinceDetail.topProducts.map((p, idx) => (
+                                    <div className="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom" style={{ borderColor: 'var(--border)', fontSize: '12.5px' }} key={p.name}>
+                                      <span className="text-secondary text-truncate" style={{ maxWidth: '170px' }}>{idx + 1}. {p.name.replace('น้ำเปล่าลอย', '')}</span>
+                                      <span className="font-semibold text-danger" style={{ color: 'var(--accent)' }}>{fmtFull(p.sales)}</span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <span className="text-muted small">ไม่มีข้อมูลผลิตภัณฑ์</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
                 </div>
 
                 <div className="mt-4 p-3 rounded" style={{ background: 'var(--accent-light)', border: '1px dashed var(--accent)' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--accent-hover)' }} className="mb-2">📋 คำแนะนำการจัดการ & พัฒนาผลิตภัณฑ์ใน {selectedRegion}</div>
-                  <div className="small text-secondary mb-1">• <b>เพิ่มกำลังผลิต:</b> <span className="text-light font-medium">{currentRegDetail.productionRecommendation}</span></div>
-                  <div className="small text-secondary">• <b>โอกาสสินค้าใหม่:</b> <span className="text-light font-medium">{currentRegDetail.newProductOpportunity}</span></div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--accent-hover)' }} className="mb-2">
+                    📋 คำแนะนำการจัดการ & พัฒนาผลิตภัณฑ์ใน {selectedProvince ? `จังหวัด ${selectedProvince}` : selectedRegion}
+                  </div>
+                  <div className="small text-secondary mb-1">
+                    • <b>เพิ่มกำลังผลิต:</b> <span className="text-light font-medium">{selectedProvince ? provinceDetail?.productionRecommendation : currentRegDetail.productionRecommendation}</span>
+                  </div>
+                  <div className="small text-secondary">
+                    • <b>โอกาสสินค้าใหม่:</b> <span className="text-light font-medium">{selectedProvince ? provinceDetail?.newProductOpportunity : currentRegDetail.newProductOpportunity}</span>
+                  </div>
                 </div>
               </div>
             </div>
