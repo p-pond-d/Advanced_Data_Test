@@ -11,6 +11,12 @@ export default defineConfig({
         target: 'http://localhost:5000',
         changeOrigin: true,
         secure: false,
+      },
+      '/github-raw': {
+        target: 'https://raw.githubusercontent.com',
+        changeOrigin: true,
+        secure: true,
+        rewrite: (path) => path.replace(/^\/github-raw/, ''),
       }
     }
   }

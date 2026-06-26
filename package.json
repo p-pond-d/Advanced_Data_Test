@@ -7,6 +7,7 @@
     "etl": "npm run etl --prefix backend",
     "backend": "npm start --prefix backend",
     "frontend": "npm run dev --prefix frontend",
+    "generate:map": "node generate_map.js",
     "start": "npx concurrently \"npm run backend\" \"npm run frontend\""
   },
   "devDependencies": {

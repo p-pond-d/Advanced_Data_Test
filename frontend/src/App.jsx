@@ -44,12 +44,12 @@ const CUSTOMER_COLORS = {
 };
 
 const REGION_COLORS = {
-  "ภาคเหนือ": "#10b981",         // Emerald Green
-  "ภาคตะวันออกเฉียงเหนือ": "#f59e0b", // Amber Orange
-  "ภาคกลาง": "#6366f1",         // Electric Indigo
-  "ภาคตะวันตก": "#ec4899",       // Vibrant Pink
-  "ภาคตะวันออก": "#06b6d4",       // Neon Cyan
-  "ภาคใต้": "#3b82f6"            // Royal Blue
+  "ภาคเหนือ": "#c084fc",         // Soft purple/lavender (like reference)
+  "ภาคตะวันออกเฉียงเหนือ": "#fb923c", // Soft orange (like reference)
+  "ภาคกลาง": "#818cf8",         // Lavender blue (like reference)
+  "ภาคตะวันตก": "#86efac",       // Soft green (like reference)
+  "ภาคตะวันออก": "#22d3ee",       // Soft cyan/teal (like reference)
+  "ภาคใต้": "#4ade80"            // Mint green (like reference)
 };
 
 const fmt = v => '฿' + (v / 1000).toFixed(0) + 'K';
@@ -384,13 +384,130 @@ const generateMockProvinceSales = () => {
 };
 
 const labelCoords = {
-  "ภาคเหนือ": { x: 180, y: 220, name: "เหนือ" },
-  "ภาคตะวันออกเฉียงเหนือ": { x: 380, y: 320, name: "อีสาน" },
-  "ภาคกลาง": { x: 230, y: 470, name: "กลาง" },
-  "ภาคตะวันตก": { x: 140, y: 460, name: "ตก" },
-  "ภาคตะวันออก": { x: 340, y: 530, name: "ออก" },
-  "ภาคใต้": { x: 180, y: 780, name: "ใต้" }
+  "ภาคเหนือ": { x: 175, y: 180, name: "เหนือ" },
+  "ภาคตะวันออกเฉียงเหนือ": { x: 395, y: 290, name: "อีสาน" },
+  "ภาคกลาง": { x: 230, y: 485, name: "กลาง" },
+  "ภาคตะวันตก": { x: 115, y: 490, name: "ตก" },
+  "ภาคตะวันออก": { x: 330, y: 540, name: "ออก" },
+  "ภาคใต้": { x: 165, y: 800, name: "ใต้" }
 };
+
+// Province English name -> Thai region mapping for GeoJSON rendering
+const provinceEnNameToRegion = {
+  // ภาคเหนือ
+  'Mae Hong Son': 'ภาคเหนือ', 'Chiang Mai': 'ภาคเหนือ', 'Chiang Rai': 'ภาคเหนือ',
+  'Lamphun': 'ภาคเหนือ', 'Lampang': 'ภาคเหนือ', 'Phrae': 'ภาคเหนือ',
+  'Nan': 'ภาคเหนือ', 'Phayao': 'ภาคเหนือ', 'Uttaradit': 'ภาคเหนือ',
+  // ภาคตะวันออกเฉียงเหนือ
+  'Loei': 'ภาคตะวันออกเฉียงเหนือ', 'Nong Khai': 'ภาคตะวันออกเฉียงเหนือ',
+  'Bueng Kan': 'ภาคตะวันออกเฉียงเหนือ', 'Nong Bua Lam Phu': 'ภาคตะวันออกเฉียงเหนือ',
+  'Udon Thani': 'ภาคตะวันออกเฉียงเหนือ', 'Sakon Nakhon': 'ภาคตะวันออกเฉียงเหนือ',
+  'Nakhon Phanom': 'ภาคตะวันออกเฉียงเหนือ', 'Kalasin': 'ภาคตะวันออกเฉียงเหนือ',
+  'Khon Kaen': 'ภาคตะวันออกเฉียงเหนือ', 'Mukdahan': 'ภาคตะวันออกเฉียงเหนือ',
+  'Maha Sarakham': 'ภาคตะวันออกเฉียงเหนือ', 'Roi Et': 'ภาคตะวันออกเฉียงเหนือ',
+  'Yasothon': 'ภาคตะวันออกเฉียงเหนือ', 'Amnat Charoen': 'ภาคตะวันออกเฉียงเหนือ',
+  'Chaiyaphum': 'ภาคตะวันออกเฉียงเหนือ', 'Nakhon Ratchasima': 'ภาคตะวันออกเฉียงเหนือ',
+  'Buriram': 'ภาคตะวันออกเฉียงเหนือ', 'Surin': 'ภาคตะวันออกเฉียงเหนือ',
+  'Si Sa Ket': 'ภาคตะวันออกเฉียงเหนือ', 'Ubon Ratchathani': 'ภาคตะวันออกเฉียงเหนือ',
+  // ภาคกลาง
+  'Phichit': 'ภาคกลาง', 'Phitsanulok': 'ภาคกลาง', 'Phetchabun': 'ภาคกลาง',
+  'Nakhon Sawan': 'ภาคกลาง', 'Chai Nat': 'ภาคกลาง', 'Lopburi': 'ภาคกลาง',
+  'Sing Buri': 'ภาคกลาง', 'Ang Thong': 'ภาคกลาง',
+  'Phra Nakhon Si Ayutthaya': 'ภาคกลาง', 'Saraburi': 'ภาคกลาง',
+  'Pathum Thani': 'ภาคกลาง', 'Nonthaburi': 'ภาคกลาง', 'Bangkok': 'ภาคกลาง',
+  'Samut Prakan': 'ภาคกลาง', 'Nakhon Pathom': 'ภาคกลาง',
+  'Samut Sakhon': 'ภาคกลาง', 'Samut Songkhram': 'ภาคกลาง',
+  'Suphan Buri': 'ภาคกลาง', 'Nakhon Nayok': 'ภาคกลาง',
+  // ภาคตะวันตก
+  'Tak': 'ภาคตะวันตก', 'Kanchanaburi': 'ภาคตะวันตก', 'Ratchaburi': 'ภาคตะวันตก',
+  'Phetchaburi': 'ภาคตะวันตก', 'Prachuap Khiri Khan': 'ภาคตะวันตก',
+  // ภาคตะวันออก
+  'Chachoengsao': 'ภาคตะวันออก', 'Chon Buri': 'ภาคตะวันออก',
+  'Rayong': 'ภาคตะวันออก', 'Chanthaburi': 'ภาคตะวันออก', 'Trat': 'ภาคตะวันออก',
+  'Prachin Buri': 'ภาคตะวันออก', 'Sa Kaeo': 'ภาคตะวันออก',
+  // ภาคใต้
+  'Chumphon': 'ภาคใต้', 'Ranong': 'ภาคใต้', 'Surat Thani': 'ภาคใต้',
+  'Phang Nga': 'ภาคใต้', 'Phuket': 'ภาคใต้', 'Krabi': 'ภาคใต้',
+  'Nakhon Si Thammarat': 'ภาคใต้', 'Phatthalung': 'ภาคใต้', 'Trang': 'ภาคใต้',
+  'Satun': 'ภาคใต้', 'Songkhla': 'ภาคใต้', 'Pattani': 'ภาคใต้',
+  'Yala': 'ภาคใต้', 'Narathiwat': 'ภาคใต้',
+};
+
+// Province English name -> Thai name mapping for tooltip display
+const provinceEnToTH = {
+  'Mae Hong Son': 'แม่ฮ่องสอน', 'Chiang Mai': 'เชียงใหม่', 'Chiang Rai': 'เชียงราย',
+  'Lamphun': 'ลำพูน', 'Lampang': 'ลำปาง', 'Phrae': 'แพร่',
+  'Nan': 'น่าน', 'Phayao': 'พะเยา', 'Uttaradit': 'อุตรดิตถ์',
+  'Loei': 'เลย', 'Nong Khai': 'หนองคาย', 'Bueng Kan': 'บึงกาฬ',
+  'Nong Bua Lam Phu': 'หนองบัวลำภู', 'Udon Thani': 'อุดรธานี',
+  'Sakon Nakhon': 'สกลนคร', 'Nakhon Phanom': 'นครพนม', 'Kalasin': 'กาฬสินธุ์',
+  'Khon Kaen': 'ขอนแก่น', 'Mukdahan': 'มุกดาหาร', 'Maha Sarakham': 'มหาสารคาม',
+  'Roi Et': 'ร้อยเอ็ด', 'Yasothon': 'ยโสธร', 'Amnat Charoen': 'อำนาจเจริญ',
+  'Chaiyaphum': 'ชัยภูมิ', 'Nakhon Ratchasima': 'นครราชสีมา',
+  'Buriram': 'บุรีรัมย์', 'Surin': 'สุรินทร์', 'Si Sa Ket': 'ศรีสะเกษ',
+  'Ubon Ratchathani': 'อุบลราชธานี', 'Phichit': 'พิจิตร', 'Phitsanulok': 'พิษณุโลก',
+  'Phetchabun': 'เพชรบูรณ์', 'Nakhon Sawan': 'นครสวรรค์', 'Chai Nat': 'ชัยนาท',
+  'Lopburi': 'ลพบุรี', 'Sing Buri': 'สิงห์บุรี', 'Ang Thong': 'อ่างทอง',
+  'Phra Nakhon Si Ayutthaya': 'พระนครศรีอยุธยา', 'Saraburi': 'สระบุรี',
+  'Pathum Thani': 'ปทุมธานี', 'Nonthaburi': 'นนทบุรี', 'Bangkok': 'กรุงเทพมหานคร',
+  'Samut Prakan': 'สมุทรปราการ', 'Nakhon Pathom': 'นครปฐม',
+  'Samut Sakhon': 'สมุทรสาคร', 'Samut Songkhram': 'สมุทรสงคราม',
+  'Suphan Buri': 'สุพรรณบุรี', 'Nakhon Nayok': 'นครนายก',
+  'Tak': 'ตาก', 'Kanchanaburi': 'กาญจนบุรี', 'Ratchaburi': 'ราชบุรี',
+  'Phetchaburi': 'เพชรบุรี', 'Prachuap Khiri Khan': 'ประจวบคีรีขันธ์',
+  'Chachoengsao': 'ฉะเชิงเทรา', 'Chon Buri': 'ชลบุรี', 'Rayong': 'ระยอง',
+  'Chanthaburi': 'จันทบุรี', 'Trat': 'ตราด', 'Prachin Buri': 'ปราจีนบุรี',
+  'Sa Kaeo': 'สระแก้ว', 'Chumphon': 'ชุมพร', 'Ranong': 'ระนอง',
+  'Surat Thani': 'สุราษฎร์ธานี', 'Phang Nga': 'พังงา', 'Phuket': 'ภูเก็ต',
+  'Krabi': 'กระบี่', 'Nakhon Si Thammarat': 'นครศรีธรรมราช',
+  'Phatthalung': 'พัทลุง', 'Trang': 'ตรัง', 'Satun': 'สตูล',
+  'Songkhla': 'สงขลา', 'Pattani': 'ปัตตานี', 'Yala': 'ยะลา', 'Narathiwat': 'นราธิวาส'
+};
+
+// Simple Mercator projection for Thailand GeoJSON
+// Thailand bbox: lon 97.5-105.7, lat 5.5-20.5
+const THAILAND_PROJ = {
+  minLon: 97.5, maxLon: 105.7,
+  minLat: 5.5, maxLat: 20.5,
+  width: 560, height: 1025
+};
+
+function projectPoint(lon, lat) {
+  const { minLon, maxLon, minLat, maxLat, width, height } = THAILAND_PROJ;
+  const x = ((lon - minLon) / (maxLon - minLon)) * width;
+  // Use Mercator-style lat projection
+  const latRad = lat * Math.PI / 180;
+  const minLatRad = minLat * Math.PI / 180;
+  const maxLatRad = maxLat * Math.PI / 180;
+  const mercLat = Math.log(Math.tan(Math.PI / 4 + latRad / 2));
+  const mercMin = Math.log(Math.tan(Math.PI / 4 + minLatRad / 2));
+  const mercMax = Math.log(Math.tan(Math.PI / 4 + maxLatRad / 2));
+  const y = height - ((mercLat - mercMin) / (mercMax - mercMin)) * height;
+  return [x, y];
+}
+
+function coordsToSvgPath(geometry) {
+  // Get only the outer rings (index 0 of each polygon)
+  let outerRings = [];
+  if (geometry.type === 'Polygon') {
+    outerRings = [geometry.coordinates[0]]; // only outer ring
+  } else if (geometry.type === 'MultiPolygon') {
+    outerRings = geometry.coordinates.map(polygon => polygon[0]); // outer ring of each polygon
+  }
+  
+  return outerRings.map(ring => {
+    if (!ring || ring.length < 3) return '';
+    // Simplify: take every Nth point to reduce complexity while maintaining shape
+    const step = Math.max(1, Math.floor(ring.length / 120));
+    const pts = [];
+    for (let i = 0; i < ring.length; i += step) {
+      const [x, y] = projectPoint(ring[i][0], ring[i][1]);
+      pts.push([x.toFixed(1), y.toFixed(1)]);
+    }
+    if (pts.length < 3) return '';
+    return 'M' + pts.join('L') + 'Z';
+  }).filter(Boolean).join(' ');
+}
 
 function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces = [], provinceSales = {} }) {
   const [paths, setPaths] = useState([]);
@@ -404,24 +521,51 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
 
   useEffect(() => {
     setLoading(true);
-    axios.get('/thailand_regions.json')
+    // Try to load GeoJSON from GitHub via proxy (all 77 provinces)
+    axios.get('/github-raw/apisit/thailand.json/master/thailand.json')
       .then(res => {
+        const features = res.data.features || [];
         const flattened = [];
-        Object.entries(res.data).forEach(([regionName, provinces]) => {
-          provinces.forEach(p => {
-            flattened.push({
-              ...p,
-              region: regionName
-            });
-          });
+        features.forEach(feature => {
+          const name = feature.properties?.name;
+          if (!name || !feature.geometry) return;
+          const region = provinceEnNameToRegion[name];
+          if (!region) return;
+          const d = coordsToSvgPath(feature.geometry);
+          if (!d) return;
+          const thName = provinceEnToTH[name] || name;
+          flattened.push({ id: name, label: name, labelTH: thName, d, region });
         });
-        setPaths(flattened);
-        setLoading(false);
+        if (flattened.length > 0) {
+          setPaths(flattened);
+          setLoading(false);
+        } else {
+          // Fallback to local JSON if GeoJSON has no valid features
+          return axios.get('/thailand_regions.json').then(r => {
+            const flat2 = [];
+            Object.entries(r.data).forEach(([regionName, provinces]) => {
+              provinces.forEach(p => flat2.push({ ...p, region: regionName }));
+            });
+            setPaths(flat2);
+            setLoading(false);
+          });
+        }
       })
-      .catch(err => {
-        console.warn("Failed to load detailed map, falling back to simplified:", err);
-        setPaths([]);
-        setLoading(false);
+      .catch(() => {
+        // Fallback to local JSON
+        axios.get('/thailand_regions.json')
+          .then(res => {
+            const flattened = [];
+            Object.entries(res.data).forEach(([regionName, provinces]) => {
+              provinces.forEach(p => flattened.push({ ...p, region: regionName }));
+            });
+            setPaths(flattened);
+            setLoading(false);
+          })
+          .catch(() => {
+            setPaths([]);
+            setLoading(false);
+          });
       });
   }, []);
 
@@ -432,7 +576,7 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
       const sales = provinceSales[provName] || 0;
       const maxProvSales = Object.values(provinceSales).length > 0 ? Math.max(...Object.values(provinceSales)) : 1;
       const ratio = sales / maxProvSales;
-      let opacity = 0.15 + ratio * 0.8;
+      let opacity = 0.25 + ratio * 0.75;
       if (isProvinceHovered) {
         opacity = 1.0;
       }
@@ -446,17 +590,14 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
     const hasFocus = activeRegion || hoveredRegion;
     const isThisRegionFocused = activeRegion === regionName || hoveredRegion === regionName;
 
-    // Calculate choropleth sales ratio opacity (0.5 to 0.95)
-    const sales = regionSales[regionName] || 0;
-    const ratio = sales / maxSales;
-
-    let opacity = 0.5 + ratio * 0.45;
+    // Base opacity - pastel colors need higher opacity to be visible
+    let opacity = 0.75;
 
     if (hasFocus) {
       if (isThisRegionFocused) {
         opacity = isProvinceHovered ? 1.0 : 0.95;
       } else {
-        opacity = 0.45; // Dim other regions
+        opacity = 0.4; // Dim other regions
       }
     } else {
       if (isProvinceHovered) {
@@ -472,7 +613,7 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
   };
 
   const handleMouseMove = (e, p) => {
-    const thName = provinceThaiNames[p.id] || p.label;
+    const thName = p.labelTH || provinceThaiNames[p.id] || p.label;
     const provSales = provinceSales[thName] || null;
 
     setTooltip({
@@ -562,8 +703,8 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
           >
             <defs>
               <radialGradient id="mapOcean" cx="50%" cy="50%" r="70%">
-                <stop offset="0%" stopColor="#0c1526" />
-                <stop offset="100%" stopColor="#050a14" />
+                <stop offset="0%" stopColor="#0f172a" />
+                <stop offset="100%" stopColor="#020617" />
               </radialGradient>
             </defs>
 
@@ -576,7 +717,7 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
                 const isSelected = activeRegion === reg;
                 const isHovered = hoveredRegion === reg;
                 const isProvHovered = hoveredProvince === p.id;
-                const thName = provinceThaiNames[p.id] || p.label;
+                const thName = p.labelTH || provinceThaiNames[p.id] || p.label;
                 const fill = getFillColor(reg, isProvHovered, thName);
                 const color = REGION_COLORS[reg] || '#6366f1';
 
@@ -589,10 +730,10 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
                       isProvHovered
                         ? '#ffffff'
                         : (isSelected || isHovered)
-                          ? 'rgba(255, 255, 255, 0.5)'
-                          : 'rgba(255, 255, 255, 0.12)'
+                          ? 'rgba(255, 255, 255, 0.6)'
+                          : 'rgba(255, 255, 255, 0.2)'
                     }
-                    strokeWidth={isProvHovered ? '2.0' : (isSelected || isHovered) ? '1.1' : '0.5'}
+                    strokeWidth={isProvHovered ? '2.5' : (isSelected || isHovered) ? '1.5' : '0.7'}
                     cursor="pointer"
                     onClick={() => onRegionSelect(reg)}
                     onMouseEnter={() => {
@@ -603,7 +744,7 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
                     onMouseLeave={handleMouseLeave}
                     style={{
                       transition: 'fill 0.25s ease, stroke 0.2s ease, stroke-width 0.2s ease',
-                      filter: isSelected ? `drop-shadow(0 0 4px ${color}88)` : 'none'
+                      filter: isSelected ? `drop-shadow(0 0 6px ${color}aa)` : 'none'
                     }}
                   />
                 );
@@ -620,16 +761,16 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
                   key={regionName}
                   x={x}
                   y={y}
-                  fill={isSelected || isHovered ? '#ffffff' : '#94a3b8'}
-                  fontSize={isSelected ? '24' : isHovered ? '21' : '17'}
-                  fontWeight="950"
+                  fill={isSelected || isHovered ? '#ffffff' : '#e2e8f0'}
+                  fontSize={isSelected ? '26' : isHovered ? '22' : '18'}
+                  fontWeight="900"
                   cursor="pointer"
                   onClick={() => onRegionSelect(regionName)}
                   onMouseEnter={() => setHoveredRegion(regionName)}
                   onMouseLeave={() => setHoveredRegion(null)}
                   paintOrder="stroke"
-                  stroke="#04080f"
-                  strokeWidth="6"
+                  stroke="rgba(0,0,0,0.8)"
+                  strokeWidth="5"
                   strokeLinejoin="round"
                   textAnchor="middle"
                   dominantBaseline="middle"
