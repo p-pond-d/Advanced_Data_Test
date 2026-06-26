@@ -1746,6 +1746,7 @@ function App() {
                         ))}
                       </div>
                     </div>
+                  </div>
                   {/* Province Breakdown */}
                   <div className="mt-4 mb-2">
                     <div className="detail-grid-title mb-2" style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--accent)' }}>
