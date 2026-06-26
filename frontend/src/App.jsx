@@ -783,16 +783,16 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
                   key={regionName}
                   x={x}
                   y={y}
-                  fill={isSelected || isHovered ? '#ffffff' : '#e2e8f0'}
-                  fontSize={isSelected ? '26' : isHovered ? '22' : '18'}
+                  fill={isSelected || isHovered ? '#ffffff' : (REGION_COLORS[regionName] || '#e2e8f0')}
+                  fontSize={isSelected ? '28' : isHovered ? '24' : '20'}
                   fontWeight="900"
                   cursor="pointer"
                   onClick={() => onRegionSelect(regionName)}
                   onMouseEnter={() => setHoveredRegion(regionName)}
                   onMouseLeave={() => setHoveredRegion(null)}
                   paintOrder="stroke"
-                  stroke="rgba(0,0,0,0.8)"
-                  strokeWidth="5"
+                  stroke="rgba(0,0,0,0.95)"
+                  strokeWidth="6"
                   strokeLinejoin="round"
                   textAnchor="middle"
                   dominantBaseline="middle"
@@ -1830,7 +1830,7 @@ function App() {
                       {/* Province Breakdown */}
                       <div className="mt-4 mb-2">
                         <div className="detail-grid-title mb-2" style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--accent)' }}>
-                          📍 ยอดขายแยกตามจังหวัดใน{selectedRegion} (คลิกเพื่อดูรายละเอียด)
+                          📍 ยอดขายแยกตามจังหวัดใน{selectedRegion} (Top 5 - คลิกเพื่อดูรายละเอียด)
                         </div>
                         <div style={{ 
                           maxHeight: '160px', 
@@ -1841,7 +1841,7 @@ function App() {
                           padding: '12px'
                         }}>
                           <div className="row g-2">
-                            {provincesInRegion.map((prov, idx) => (
+                            {provincesInRegion.slice(0, 5).map((prov, idx) => (
                               <div className="col-6 col-md-4" key={prov.id} onClick={() => setSelectedProvince(prov.name)} style={{ cursor: 'pointer' }}>
                                 <div style={{ 
                                   background: 'rgba(255,255,255,0.03)', 
@@ -1855,10 +1855,10 @@ function App() {
                                 }}
                                 className="province-card-item"
                                 >
-                                  <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={prov.name}>
+                                  <span style={{ fontSize: '12.5px', color: '#ffffff', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={prov.name}>
                                     {idx + 1}. {prov.name}
                                   </span>
-                                  <span style={{ fontSize: '12.5px', color: '#f8fafc', fontWeight: 700, marginTop: '2px' }}>
+                                  <span style={{ fontSize: '14.0px', color: 'var(--accent3)', fontWeight: 800, marginTop: '2px' }}>
                                     {fmtFull(prov.sales)}
                                   </span>
                                 </div>
