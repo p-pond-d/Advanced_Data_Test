@@ -363,6 +363,26 @@ const provinceThaiNames = {
   "trg": "ตรัง", "yla": "ยะลา"
 };
 
+const generateMockProvinceSales = () => {
+  const mockMap = {};
+  const top10Map = {
+    "สมุทรปราการ": 424391, "ขอนแก่น": 289135, "กาฬสินธุ์": 189286,
+    "ภูเก็ต": 183827, "นครปฐม": 153705, "ชลบุรี": 143171,
+    "นครศรีธรรมราช": 133086, "นครราชสีมา": 127089, "กรุงเทพมหานคร": 124048,
+    "กาญจนบุรี": 104953
+  };
+  Object.entries(provinceThaiNames).forEach(([code, name]) => {
+    if (top10Map[name]) {
+      mockMap[name] = top10Map[name];
+    } else {
+      let sum = 0;
+      for (let i = 0; i < code.length; i++) sum += code.charCodeAt(i);
+      mockMap[name] = 12000 + (sum % 7) * 14000 + (sum % 3) * 5000;
+    }
+  });
+  return mockMap;
+};
+
 const labelCoords = {
   "ภาคเหนือ": { x: 180, y: 220, name: "เหนือ" },
   "ภาคตะวันออกเฉียงเหนือ": { x: 380, y: 320, name: "อีสาน" },
@@ -372,23 +392,55 @@ const labelCoords = {
   "ภาคใต้": { x: 180, y: 780, name: "ใต้" }
 };
 
-function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces = [] }) {
+function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces = [], provinceSales = {} }) {
   const [paths, setPaths] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hoveredRegion, setHoveredRegion] = useState(null);
   const [hoveredProvince, setHoveredProvince] = useState(null);
   const [tooltip, setTooltip] = useState({ show: false, x: 0, y: 0, province: '', region: '', provSales: null });
+  const [viewMode, setViewMode] = useState('region'); // 'region' or 'province'
 
   const maxSales = Math.max(...Object.values(regionSales), 1);
 
   useEffect(() => {
-    // Force simplified regional map (always empty paths) to solve truncated map issue
-    setPaths([]);
-    setLoading(false);
+    setLoading(true);
+    axios.get('/thailand_regions.json')
+      .then(res => {
+        const flattened = [];
+        Object.entries(res.data).forEach(([regionName, provinces]) => {
+          provinces.forEach(p => {
+            flattened.push({
+              ...p,
+              region: regionName
+            });
+          });
+        });
+        setPaths(flattened);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.warn("Failed to load detailed map, falling back to simplified:", err);
+        setPaths([]);
+        setLoading(false);
+      });
   }, []);
 
-  const getFillColor = (regionName, isProvinceHovered) => {
+  const getFillColor = (regionName, isProvinceHovered, provName) => {
     const baseColor = REGION_COLORS[regionName] || '#94a3b8';
+
+    if (viewMode === 'province') {
+      const sales = provinceSales[provName] || 0;
+      const maxProvSales = Object.values(provinceSales).length > 0 ? Math.max(...Object.values(provinceSales)) : 1;
+      const ratio = sales / maxProvSales;
+      let opacity = 0.15 + ratio * 0.8;
+      if (isProvinceHovered) {
+        opacity = 1.0;
+      }
+      const r = parseInt(baseColor.slice(1, 3), 16);
+      const g = parseInt(baseColor.slice(3, 5), 16);
+      const b = parseInt(baseColor.slice(5, 7), 16);
+      return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+    }
 
     // Check if any region is currently active or hovered
     const hasFocus = activeRegion || hoveredRegion;
@@ -421,8 +473,7 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
 
   const handleMouseMove = (e, p) => {
     const thName = provinceThaiNames[p.id] || p.label;
-    const topProvRecord = topProvinces.find(tp => tp.n === thName);
-    const provSales = topProvRecord ? topProvRecord.v : null;
+    const provSales = provinceSales[thName] || null;
 
     setTooltip({
       show: true,
@@ -451,13 +502,49 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
 
   return (
     <div className="map-container">
-      <div className="card-header-clean">
-        <h4 className="card-title-clean">🗺️ Thailand Regional Coverage</h4>
-        {loading ? (
-          <span className="small text-danger animate-pulse">กำลังโหลดแผนที่...</span>
-        ) : (
-          <span className="small text-muted">คลิกเลือกภาคบนแผนที่</span>
-        )}
+      <div className="card-header-clean" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+        <div>
+          <h4 className="card-title-clean" style={{ margin: 0 }}>🗺️ Thailand Map</h4>
+          {loading ? (
+            <span className="small text-danger animate-pulse">กำลังโหลดแผนที่...</span>
+          ) : (
+            <span className="small text-muted">{viewMode === 'region' ? 'คลิกเลือกภาคบนแผนที่' : 'แสดงยอดขายแยกรายจังหวัด'}</span>
+          )}
+        </div>
+        <div style={{ display: 'flex', background: 'rgba(255,255,255,0.06)', padding: '2px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <button
+            onClick={() => setViewMode('region')}
+            style={{
+              background: viewMode === 'region' ? 'var(--accent)' : 'transparent',
+              border: 'none',
+              borderRadius: '6px',
+              color: '#fff',
+              fontSize: '11px',
+              fontWeight: 'bold',
+              padding: '4px 10px',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+          >
+            รายภาค
+          </button>
+          <button
+            onClick={() => setViewMode('province')}
+            style={{
+              background: viewMode === 'province' ? 'var(--accent)' : 'transparent',
+              border: 'none',
+              borderRadius: '6px',
+              color: '#fff',
+              fontSize: '11px',
+              fontWeight: 'bold',
+              padding: '4px 10px',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+          >
+            รายจังหวัด
+          </button>
+        </div>
       </div>
 
       <div className="map-svg-wrap position-relative" style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '6px 0 4px' }}>
@@ -468,7 +555,7 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
               width: '100%',
               maxWidth: '360px',
               height: 'auto',
-              maxHeight: '520px',
+              maxHeight: '660px',
               filter: 'drop-shadow(0 8px 32px rgba(0,0,0,0.65))',
               transition: 'all 0.3s'
             }}
@@ -489,7 +576,8 @@ function ThailandMap({ activeRegion, onRegionSelect, regionSales, topProvinces =
                 const isSelected = activeRegion === reg;
                 const isHovered = hoveredRegion === reg;
                 const isProvHovered = hoveredProvince === p.id;
-                const fill = getFillColor(reg, isProvHovered);
+                const thName = provinceThaiNames[p.id] || p.label;
+                const fill = getFillColor(reg, isProvHovered, thName);
                 const color = REGION_COLORS[reg] || '#6366f1';
 
                 return (
@@ -715,6 +803,7 @@ function ErrorDetailModal({ log, onClose }) {
   const [allErrors, setAllErrors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedTypeFilter, setSelectedTypeFilter] = useState(null); // null means all
   const itemsPerPage = 5;
 
   useEffect(() => {
@@ -732,6 +821,8 @@ function ErrorDetailModal({ log, onClose }) {
   }, [log]);
 
   const totalCount = log.errorCount || allErrors.length;
+  
+  // Calculate total counts per type regardless of current filter
   const typeSummary = allErrors.reduce((acc, d) => {
     acc[d.errorType] = (acc[d.errorType] || 0) + 1;
     return acc;
@@ -743,8 +834,22 @@ function ErrorDetailModal({ log, onClose }) {
     } catch { return isoStr; }
   };
 
-  const totalPages = Math.ceil(allErrors.length / itemsPerPage) || 1;
-  const paginatedErrors = allErrors.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  // Filter errors by selected errorType
+  const filteredErrors = selectedTypeFilter !== null
+    ? allErrors.filter(d => d.errorType === selectedTypeFilter)
+    : allErrors;
+
+  const totalPages = Math.ceil(filteredErrors.length / itemsPerPage) || 1;
+  const paginatedErrors = filteredErrors.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const handleFilterClick = (typeNum) => {
+    if (selectedTypeFilter === typeNum) {
+      setSelectedTypeFilter(null); // toggle off
+    } else {
+      setSelectedTypeFilter(typeNum);
+    }
+    setCurrentPage(1);
+  };
 
   return (
     <div
@@ -776,11 +881,11 @@ function ErrorDetailModal({ log, onClose }) {
               <span style={{ fontSize: '20px' }}>🚨</span>
               <h4 style={{ margin: 0, color: '#f1f5f9', fontWeight: 700, fontSize: '17px' }}>รายละเอียดข้อผิดพลาด</h4>
               <span style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '6px', padding: '2px 8px', fontSize: '12px', fontWeight: 700 }}>
-                {totalCount} รายการ
+                {filteredErrors.length} / {totalCount} รายการ
               </span>
             </div>
             <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
-              รอบซิงค์: {formatDateTH(log.SyncDate)} · แสดงทั้งหมดโดยแบ่งหน้าละ {itemsPerPage} รายการ
+              รอบซิงค์: {formatDateTH(log.SyncDate)} · แสดงผลแบ่งหน้าละ {itemsPerPage} รายการ
             </p>
           </div>
           <button onClick={onClose} style={{
@@ -791,17 +896,36 @@ function ErrorDetailModal({ log, onClose }) {
         </div>
 
         {/* Type Summary Pills */}
-        <div style={{ padding: '12px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+        <div style={{ padding: '12px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+          <button
+            onClick={() => { setSelectedTypeFilter(null); setCurrentPage(1); }}
+            style={{
+              background: selectedTypeFilter === null ? 'var(--accent)' : 'rgba(255,255,255,0.05)',
+              border: `1px solid ${selectedTypeFilter === null ? 'var(--accent)' : 'rgba(255,255,255,0.12)'}`,
+              color: '#fff', borderRadius: '20px', padding: '4px 12px',
+              fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s'
+            }}
+          >
+            📋 ทั้งหมด ({allErrors.length})
+          </button>
           {Object.entries(typeSummary).map(([typeNum, cnt]) => {
             const meta = ERROR_TYPE_LABELS[Number(typeNum)];
+            const isSelected = selectedTypeFilter === Number(typeNum);
             return (
-              <span key={typeNum} style={{
-                background: meta.color + '18', border: `1px solid ${meta.color}40`,
-                color: meta.color, borderRadius: '20px', padding: '3px 10px',
-                fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px'
-              }}>
+              <button
+                key={typeNum}
+                onClick={() => handleFilterClick(Number(typeNum))}
+                style={{
+                  background: isSelected ? meta.color : meta.color + '18',
+                  border: `1px solid ${isSelected ? meta.color : meta.color + '40'}`,
+                  color: isSelected ? '#fff' : meta.color,
+                  borderRadius: '20px', padding: '4px 12px',
+                  fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s',
+                  display: 'flex', alignItems: 'center', gap: '4px'
+                }}
+              >
                 {meta.icon} {meta.label} ({cnt})
-              </span>
+              </button>
             );
           })}
         </div>
@@ -879,7 +1003,7 @@ function ErrorDetailModal({ log, onClose }) {
                   fontSize: '12.5px', color: '#94a3b8'
                 }}>
                   <div>
-                    แสดง {Math.min((currentPage - 1) * itemsPerPage + 1, allErrors.length)} - {Math.min(currentPage * itemsPerPage, allErrors.length)} จาก {allErrors.length} รายการ
+                    แสดง {Math.min((currentPage - 1) * itemsPerPage + 1, filteredErrors.length)} - {Math.min(currentPage * itemsPerPage, filteredErrors.length)} จาก {filteredErrors.length} รายการ
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <button
@@ -946,6 +1070,7 @@ function App() {
   const [customerRatio, setCustomerRatio] = useState({ Company: 1827644, Individual: 1009408 });
   const [topCustomers, setTopCustomers] = useState(mockTopCusts);
   const [topProvinces, setTopProvinces] = useState(mockTopProvs);
+  const [provinceSales, setProvinceSales] = useState(generateMockProvinceSales);
   const [topProducts, setTopProducts] = useState(mockTopProducts);
   const [heatmap, setHeatmap] = useState(mockHeatmap);
   const [productionRecommendations, setProductionRecommendations] = useState([
@@ -1001,6 +1126,17 @@ function App() {
         const topRes = await axios.get('/api/top-analytics');
         setTopCustomers(topRes.data.topCustomers);
         setTopProvinces(topRes.data.topProvinces);
+
+        try {
+          const provSalesRes = await axios.get('/api/province-sales');
+          const pMap = {};
+          provSalesRes.data.forEach(item => {
+            pMap[item.n] = item.v;
+          });
+          setProvinceSales(pMap);
+        } catch (e) {
+          console.warn("Failed to fetch province sales", e.message);
+        }
 
         const prodRes = await axios.get('/api/top-products');
         setTopProducts(prodRes.data);
@@ -1362,6 +1498,7 @@ function App() {
                   onRegionSelect={setSelectedRegion}
                   regionSales={regionSales}
                   topProvinces={topProvinces}
+                  provinceSales={provinceSales}
                 />
               </div>
             </div>

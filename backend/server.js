@@ -329,6 +329,24 @@ app.get('/api/customer-segments', async (req, res) => {
   }
 });
 
+// 5.1 Province Sales (All Provinces)
+app.get('/api/province-sales', async (req, res) => {
+  try {
+    const pool = await getPool();
+    const result = await pool.request().query(`
+      SELECT 
+        Province as n, 
+        SUM(NetAmount) as v
+      FROM pumpui_show
+      GROUP BY Province
+      ORDER BY v DESC
+    `);
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 6. Top 10 Customers & Top 10 Provinces
 app.get('/api/top-analytics', async (req, res) => {
   try {
